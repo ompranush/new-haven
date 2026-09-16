@@ -81,7 +81,7 @@ class Simulation:
         for citizen, other in zip(people[::2], people[1::2]):
             bond = citizen.relationships.get(other.id, 0) + self.rng.uniform(1, 4) * (0.5 + citizen.sociability)
             citizen.relationships[other.id] = other.relationships[citizen.id] = bond
-            if bond > 18 and self.rng.random() < 0.12:
+            if self.rng.random() < (0.12 + 0.25 * citizen.sociability):
                 citizen.remember(f"Spent time with {other.name} on day {self.world.day}.")
                 other.remember(f"Spent time with {citizen.name} on day {self.world.day}.")
             if bond > 24 and not citizen.partner_id and not other.partner_id:
