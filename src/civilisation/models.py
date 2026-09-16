@@ -17,13 +17,15 @@ class Citizen:
     alive: bool = True
     x: int = 0
     y: int = 0
+    energy: float = 75.0
+    hunger: float = 15.0
+    activity: str = "settling in"
     memories: list[str] = field(default_factory=list)
     relationships: dict[int, float] = field(default_factory=dict)
 
     def remember(self, memory: str) -> None:
-        """Keep a small, human-readable personal history."""
         self.memories.append(memory)
-        del self.memories[:-6]
+        del self.memories[:-8]
 
 
 @dataclass
@@ -35,5 +37,6 @@ class World:
     height: int = 9
     weather: str = "Clear"
     treasury: float = 120.0
+    food_price: float = 0.8
     events: list[str] = field(default_factory=list)
     history: list[dict] = field(default_factory=list)
