@@ -26,6 +26,11 @@ class SimulationTests(unittest.TestCase):
             self.assertGreaterEqual(citizen.happiness, 0)
             self.assertLessEqual(citizen.happiness, 100)
 
+    def test_food_is_consumed_once_per_day(self):
+        sim = Simulation(7, 100)
+        sim.step(10)
+        self.assertGreater(sim.world.food, 20)
+
     def test_goal_led_movement_stays_on_world(self):
         sim = Simulation(2, 20)
         sim.step(15)
