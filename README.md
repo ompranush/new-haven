@@ -4,13 +4,13 @@ New Haven is a local-first, deterministic AI civilisation simulator. A town of a
 
 The MVP deliberately has **no LLM or API dependency**. The inexpensive rules engine makes runs reproducible and inspectable; a future cognition layer can be reserved for high-salience moments rather than every citizen action.
 
-## What is in v0.2
+## What is in v0.3
 
 - Seeded, reproducible worlds (same seed + same actions = same result)
 - Citizens with jobs, goals, wealth, happiness, sociability, relationships, locations, and short memories
-- Food production and consumption, employment, weather, a town treasury, births, and deaths
-- Town events: harvest rain, trade caravans, cold snaps, festivals, and food shortages
-- A Streamlit control room with settlement metrics, history charts, citizen memories, and a voxel-inspired town view
+- Balanced food production and consumption, local food pricing, employment, daily needs, weather, a town treasury, births, and deaths
+- Town events and user-led council interventions: harvest rain, trade caravans, cold snaps, festivals, relief, price caps, and food shortages
+- A game-like Streamlit control room with an original SVG isometric town, resident inspector, town chronicle, responsive HUD, and separate analytics
 - Automated tests for reproducibility, history, boundaries, memory, and invalid actions
 
 ## Run it
@@ -50,6 +50,6 @@ The simulation owns state transitions. Any future LLM component should receive a
 ## Next experiments
 
 1. Persist simulation runs and event logs to SQLite.
-2. Add businesses, housing, beliefs, policies, and migration.
+2. Add businesses, housing, beliefs, policies, migration, and a save/load run archive.
 3. Run scenario batches to compare inequality, food shocks, or automation policies.
 4. Add optional, rate-limited LLM reflection only for significant social events.
