@@ -10,13 +10,24 @@ st.set_page_config(page_title="New Haven", page_icon="🏘️", layout="wide", i
 
 st.markdown("""
 <style>
-.stApp {background: radial-gradient(circle at 20% 0%, #173e4b 0, #0a1720 48%, #071116 100%); color: #eff7f1;}
+.stApp {background: #f4f8f5; color: #14262c;}
 .block-container {max-width: 1450px; padding-top: 1.5rem;}
-[data-testid="stMetric"] {background: rgba(21, 42, 48, .82); border: 1px solid rgba(151, 210, 185, .18); border-radius: 15px; padding: 14px; box-shadow: 0 10px 30px rgba(0,0,0,.15);}
-[data-testid="stMetricValue"] {color: #f6cf7d;}
-[data-testid="stSidebar"] {background: #0a161d;}
-h1, h2, h3 {letter-spacing: -.03em;}
-div[data-testid="stTabs"] button {font-weight: 700;}
+h1, h2, h3 {color: #102d35 !important; letter-spacing: -.03em;}
+p, li, label, [data-testid="stMarkdownContainer"], [data-testid="stCaptionContainer"] {color: #243c43 !important;}
+[data-testid="stMetric"] {background: #ffffff; border: 1px solid #ceded6; border-radius: 15px; padding: 14px; box-shadow: 0 4px 15px rgba(22, 56, 54, .08);}
+[data-testid="stMetricLabel"] {color: #49626a !important; font-weight: 700;}
+[data-testid="stMetricValue"] {color: #0a5962 !important;}
+[data-testid="stSidebar"] {background: #11313a;}
+[data-testid="stSidebar"] * {color: #f6fbf8 !important;}
+[data-testid="stSidebar"] [data-testid="stCaptionContainer"] {color: #c6dfd4 !important;}
+[data-testid="stSidebar"] input, [data-testid="stSidebar"] [data-baseweb="select"] > div {background: #ffffff !important; color: #17333a !important;}
+[data-testid="stSidebar"] input {color: #17333a !important;}
+[data-testid="stTabs"] {background: #ffffff; border: 1px solid #d6e3dc; border-radius: 12px; padding: 5px 12px 0;}
+div[data-testid="stTabs"] button {color: #3c555c !important; font-weight: 700;}
+div[data-testid="stTabs"] button[aria-selected="true"] {color: #08717b !important; border-bottom-color: #08717b !important;}
+[data-testid="stDataFrame"] {border: 1px solid #ceded6; border-radius: 12px; overflow: hidden;}
+.stButton > button {background: #08717b; color: #ffffff; border: 1px solid #07616a; font-weight: 700;}
+.stButton > button:hover {background: #065e67; color: #ffffff; border-color: #065e67;}
 </style>
 """, unsafe_allow_html=True)
 
