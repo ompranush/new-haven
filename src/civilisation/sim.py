@@ -60,7 +60,7 @@ class Simulation:
         world.weather = self.rng.choices(["Clear", "Rain", "Wind"], weights=[6, 2, 1])[0]
         farmer_count = sum(citizen.job == "Farmer" for citizen in people)
         harvest = farmer_count * (5.8 if world.weather == "Rain" else 4.7 if world.weather == "Clear" else 3.4)
-        world.food = max(0, world.food + harvest - len(people) * 1.0)
+        world.food = max(0, world.food + harvest)
         scarcity = max(0, len(people) * 1.5 - world.food) / max(1, len(people))
         world.food_price = round(min(2.5, max(0.55, 0.78 + scarcity * 0.32)), 2)
         for citizen in people:
