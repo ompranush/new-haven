@@ -1,55 +1,75 @@
-# New Haven
+# New Haven · Living Worlds
 
-New Haven is a local-first, deterministic AI civilisation simulator. A town of autonomous residents works, socialises, accumulates wealth, forms partnerships, remembers notable experiences, and responds to food, weather, and shared events.
+[Play in your browser](https://new-haven-bafjr8dqjy7ntdystyayut.streamlit.app/) · [How the model works](docs/MODEL.md)
 
-The MVP deliberately has **no LLM or API dependency**. The inexpensive rules engine makes runs reproducible and inspectable; a future cognition layer can be reserved for high-salience moments rather than every citizen action.
+A small artificial society you can watch, explore, interrupt, and compare. Follow a citizen from their morning walk to their next friendship, inspect the businesses behind the town, or change one policy and see two possible futures.
 
-## What is in v0.3
+## Play
 
-- Seeded, reproducible worlds (same seed + same actions = same result)
-- Citizens with jobs, goals, wealth, happiness, sociability, relationships, locations, and short memories
-- Balanced food production and consumption, local food pricing, employment, daily needs, weather, a town treasury, births, and deaths
-- Town events and user-led council interventions: harvest rain, trade caravans, cold snaps, festivals, relief, price caps, and food shortages
-- A game-like Streamlit control room with an original SVG isometric town, resident inspector, town chronicle, responsive HUD, and separate analytics
-- Automated tests for reproducibility, history, boundaries, memory, and invalid actions
+Open the browser link; no installation or API key is needed. Press **Play**, click a resident, and watch their activity and memories change. Drag the isometric map to pan; use the zoom buttons, mouse wheel, or arrow keys. All residents are also selectable through the searchable Citizens page.
 
-## Run it
+Try a storm, a festival, food relief, education, a different income tax, or better farm tools. Every council action has a recorded consequence; funded actions require enough treasury. Save your world as JSON and load it later to resume the same random sequence. Refreshing the browser or a server restart can end an unsaved session, so save before leaving.
 
-Requires Python 3.10+.
+## Included
+
+- A responsive daylight interface with an animated, clickable isometric Canvas town, distinct buildings, river crossing, farms, forest, mine, and citizens.
+- A deterministic Python engine with personality, goals/progress, needs/rest, work, wages, taxes, business accounts, food purchases, and public meal support.
+- Directional friendships/rivalries, adult marriages, children with parents, ageing, deaths and bereavement. Event-driven memories preserve personal context.
+- World, Citizens, Economy, Chronicle, Experiments and Field Guide views. Charts give each metric its own scale.
+- Browser save/load with versioned JSON and random-generator state; validation rejects malformed worlds. Saves never contain API credentials.
+- Paired-seed experiments: baseline versus intervention, or rules versus explicitly requested AI reflection. Aggregate differences, per-seed outcomes and variation are shown separately.
+- Optional OpenAI Responses API cognition with constrained actions, no automatic retries, an explicit call limit, and recorded decisions. Off by default.
+- Automated engine, replay, lifecycle, input-validation, cognition and experiment checks; GitHub Actions runs them for every push.
+
+## Optional AI
+
+Expand **Optional AI cognition** below the interface, enable it, and enter your own OpenAI API key and a model supporting structured outputs. Keys stay in the current server session and are not sent to the Canvas component or included in saves. Use **Forget API key** to clear it. No shared owner key is exposed to public visitors.
+
+Only **Reflect on an event** or an explicitly selected **AI comparison** makes paid requests. Eligible events include loss, conflict, friendship, marriage and civic petitions. The model can propose `seek_work`, `help_neighbor`, `rest`, or `organize`; the engine validates the action and applies bounded changes. Plain simulation ticks never make API calls.
+
+The call limit defaults to 10 and counts failed requests. Responses are capped at 400 output tokens. This is a request limit, not a guaranteed currency budget; provider prices and model token use vary. AI comparisons assign the same available call allowance to each seed and report actual use. AI outputs themselves are not deterministic, but their applied decisions are recorded in saves. The provider adapter is covered with mocked responses; live paid calls require your key.
+
+Implementation follows the [official structured outputs documentation](https://developers.openai.com/api/docs/guides/structured-outputs).
+
+## Develop
+
+Python 3.10+; no frontend build step or Node runtime is needed to serve the app.
 
 ```bash
 git clone https://github.com/ompranush/new-haven.git
 cd new-haven
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 streamlit run app.py
 ```
 
-Open the local URL shown by Streamlit. Select a seed, create a world, then advance one or ten days at a time.
-
-## Test it
+On Streamlit Community Cloud, deploy branch `main`, entrypoint `app.py`. Keep the `frontend/` directory alongside it.
 
 ```bash
-python -m unittest discover -s tests
+python -m unittest discover -s tests -v
+python -m src.civilisation --seed 7 --population 100 --days 365
+python -m src.civilisation --compare education --seeds 3 --days 90
+node --check frontend/app.js  # optional frontend development check
 ```
 
-## Project layout
+## Structure
 
 ```text
-app.py                       Streamlit control room
-src/civilisation/models.py   Citizen and world state
-src/civilisation/sim.py      Deterministic simulation engine
-tests/test_sim.py            Engine contracts
+app.py                          Session host and validated action dispatch
+frontend/index.html             Responsive interface and styles
+frontend/app.js                 Canvas renderer and component interactions
+src/civilisation/models.py      Citizen and world records
+src/civilisation/sim.py         Economy, social/life rules, save/load
+src/civilisation/cognition.py   Optional constrained event reflection
+src/civilisation/experiments.py Isolated paired-seed experiments
+src/civilisation/__main__.py    Headless runs
+tests/                          Regression and independent review tests
+docs/MODEL.md                   Assumptions, units, limits and interpretation
 ```
 
-## Design principle
+## Scope and next research steps
 
-The simulation owns state transitions. Any future LLM component should receive a compact account of an important event, return a constrained decision, and let the engine validate and apply that decision. This keeps costs controlled and experiments repeatable.
+This is an interactive toy society, not a validated model of real economies or population dynamics. The browser starts with 20–250 citizens and caps experiments at 10 seeds and 365 days. The engine supports up to 1,000 initial citizens and 2,000 lifetime citizen records. It has not been validated for 10,000 agents over 1,000 years.
 
-## Next experiments
-
-1. Persist simulation runs and event logs to SQLite.
-2. Add businesses, housing, beliefs, policies, migration, and a save/load run archive.
-3. Run scenario batches to compare inequality, food shocks, or automation policies.
-4. Add optional, rate-limited LLM reflection only for significant social events.
+Businesses currently have a fixed roster; nonfarm revenue represents outside trade. New firms, bankruptcy, autonomous political movements, housing markets, richer inheritance, persistent hosted accounts, and research-scale batch scheduling are future work. Event/history retention is bounded for browser performance. See MODEL.md for exact assumptions. These boundaries are deliberate and visible rather than implied as completed research features.

@@ -1,0 +1,1073 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>New Haven — Living Worlds</title>
+    <style>
+      :root {
+        --ink: #163c38;
+        --muted: #516560;
+        --green: #225e49;
+        --line: #dce5dc;
+        --paper: #f5f7f1;
+        --gold: #bd7d32;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font:
+          14px/1.5 system-ui,
+          -apple-system,
+          sans-serif;
+      }
+      button,
+      input,
+      select {
+        font: inherit;
+      }
+      button {
+        cursor: pointer;
+        background: white;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        color: var(--ink);
+        padding: 9px 13px;
+        font-weight: 600;
+      }
+      button:hover {
+        border-color: #64967b;
+        background: #edf4ec;
+      }
+      button:focus-visible,
+      input:focus-visible,
+      select:focus-visible,
+      canvas:focus-visible {
+        outline: 3px solid #c98632;
+        outline-offset: 3px;
+      }
+      button:disabled {
+        cursor: wait;
+        opacity: 0.55;
+      }
+      .primary {
+        background: var(--green);
+        color: #fff;
+        border-color: var(--green);
+      }
+      .primary:hover {
+        background: #164632;
+        color: white;
+      }
+      .shell {
+        display: grid;
+        grid-template-columns: 210px minmax(0, 1fr);
+        min-height: 920px;
+      }
+      .sidebar {
+        background: #eaf0e7;
+        border-right: 1px solid var(--line);
+        padding: 26px 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 22px;
+      }
+      .brand {
+        font:
+          700 25px Georgia,
+          serif;
+        letter-spacing: -1px;
+      }
+      .brand span {
+        display: block;
+        font: 10px system-ui;
+        letter-spacing: 2.5px;
+        margin: 5px 0 0 32px;
+        color: var(--muted);
+      }
+      nav {
+        display: grid;
+        gap: 5px;
+      }
+      nav button {
+        text-align: left;
+        background: transparent;
+        border: 0;
+        padding: 11px 12px;
+      }
+      nav button.active {
+        background: #d2e3d1;
+        color: #173d30;
+      }
+      nav b {
+        display: inline-block;
+        width: 27px;
+        font-size: 17px;
+      }
+      .eyebrow {
+        text-transform: uppercase;
+        letter-spacing: 1.7px;
+        font-size: 10px;
+        font-weight: 750;
+        color: var(--muted);
+      }
+      .side-box {
+        border-top: 1px solid #cfdbcd;
+        padding-top: 18px;
+      }
+      .side-box label {
+        display: block;
+        font-size: 12px;
+        margin: 9px 0 4px;
+      }
+      .side-box input,
+      .side-box select {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #bfcebf;
+        border-radius: 7px;
+        background: #f9fbf6;
+        color: var(--ink);
+      }
+      .side-box button {
+        width: 100%;
+        margin-top: 10px;
+        font-size: 12px;
+      }
+      .side-footer {
+        margin-top: auto;
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .status-dot {
+        display: inline-block;
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #36845a;
+        margin-right: 6px;
+      }
+      .main {
+        padding: 26px 28px;
+        min-width: 0;
+      }
+      header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 18px;
+        margin-bottom: 22px;
+      }
+      h1 {
+        font:
+          normal 32px Georgia,
+          serif;
+        letter-spacing: -0.8px;
+        margin: 3px 0;
+      }
+      p {
+        margin: 5px 0;
+        color: var(--muted);
+      }
+      .date {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 9px 15px;
+        white-space: nowrap;
+      }
+      .date strong {
+        font-size: 16px;
+      }
+      .metrics {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 10px;
+        margin-bottom: 20px;
+      }
+      .metric {
+        border: 1px solid var(--line);
+        background: #fff;
+        border-radius: 12px;
+        padding: 13px 16px;
+      }
+      .metric .value {
+        font-size: 24px;
+        font-weight: 650;
+        letter-spacing: -0.6px;
+        margin: 4px 0;
+      }
+      .metric small {
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .world-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 270px;
+        gap: 17px;
+        align-items: start;
+      }
+      .card {
+        background: white;
+        border: 1px solid var(--line);
+        border-radius: 13px;
+        overflow: hidden;
+      }
+      .card-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        align-items: center;
+        padding: 15px 18px;
+        border-bottom: 1px solid var(--line);
+      }
+      h2 {
+        font:
+          normal 22px Georgia,
+          serif;
+        margin: 0;
+      }
+      h3 {
+        margin: 0;
+        font-size: 14px;
+      }
+      .tag {
+        font-size: 10px;
+        border: 1px solid #d4e1d2;
+        border-radius: 20px;
+        padding: 3px 8px;
+        background: #edf4e9;
+        color: #375f3b;
+      }
+      .scene {
+        height: 490px;
+        position: relative;
+        background: radial-gradient(ellipse at 50% 43%, #e4eddb, #d5e2cc 75%);
+        overflow: hidden;
+      }
+      .scene canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+        touch-action: none;
+        cursor: grab;
+      }
+      .scene canvas:active {
+        cursor: grabbing;
+      }
+      .scene-label {
+        position: absolute;
+        left: 17px;
+        top: 16px;
+        pointer-events: none;
+        font-size: 11px;
+        color: #3b5744;
+        background: #ffffffb8;
+        padding: 6px 10px;
+        border-radius: 6px;
+        backdrop-filter: blur(5px);
+      }
+      .map-tools {
+        position: absolute;
+        right: 13px;
+        bottom: 13px;
+        display: flex;
+        gap: 5px;
+      }
+      .map-tools button {
+        padding: 5px 11px;
+        box-shadow: 0 2px 8px #254c2920;
+      }
+      .tooltip {
+        position: absolute;
+        background: #153e35;
+        color: white;
+        padding: 6px 10px;
+        border-radius: 6px;
+        pointer-events: none;
+        display: none;
+        font-size: 12px;
+        max-width: 220px;
+        z-index: 3;
+      }
+      .world-foot {
+        padding: 13px 17px;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+      }
+      .time-controls {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .time-controls button {
+        padding: 7px 10px;
+        font-size: 12px;
+      }
+      .time-controls select {
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        padding: 6px;
+        background: white;
+        color: var(--ink);
+      }
+      .legend {
+        font-size: 10px;
+        color: var(--muted);
+      }
+      .legend i {
+        display: inline-block;
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        margin: 0 3px 0 8px;
+      }
+      .inspector {
+        padding: 19px;
+        min-height: 410px;
+      }
+      .avatar {
+        width: 54px;
+        height: 54px;
+        border-radius: 13px;
+        background: #e6ecd9;
+        display: grid;
+        place-items: center;
+        font-size: 29px;
+        margin-bottom: 12px;
+      }
+      .inspector h2 {
+        font-size: 23px;
+      }
+      .muted {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .separator {
+        border: 0;
+        border-top: 1px solid var(--line);
+        margin: 16px 0;
+      }
+      .need {
+        margin: 10px 0;
+        font-size: 11px;
+      }
+      .need > div {
+        display: flex;
+        justify-content: space-between;
+      }
+      .bar {
+        height: 5px;
+        background: #e6ece2;
+        border-radius: 4px;
+        margin-top: 5px;
+        overflow: hidden;
+      }
+      .bar i {
+        display: block;
+        height: 100%;
+        background: #699765;
+      }
+      .goal {
+        background: #f2f5eb;
+        border-radius: 8px;
+        padding: 10px;
+        font-size: 12px;
+        margin: 13px 0;
+      }
+      .memory {
+        font-size: 12px;
+        border-left: 2px solid #b7caab;
+        padding: 2px 0 2px 10px;
+        margin: 12px 0;
+      }
+      .memory small {
+        display: block;
+        color: var(--muted);
+        font-size: 10px;
+      }
+      .chronicle {
+        margin-top: 18px;
+      }
+      .event-list {
+        padding: 0 18px;
+      }
+      .event {
+        display: grid;
+        grid-template-columns: 34px 1fr auto;
+        gap: 10px;
+        align-items: start;
+        padding: 12px 0;
+        border-bottom: 1px solid #edf0ea;
+      }
+      .event:last-child {
+        border: 0;
+      }
+      .event-icon {
+        background: #f2eee3;
+        border-radius: 9px;
+        padding: 6px;
+        text-align: center;
+      }
+      .event p {
+        font-size: 12px;
+        margin-top: 3px;
+      }
+      .event time {
+        font-size: 10px;
+        color: var(--muted);
+        white-space: nowrap;
+        padding-top: 4px;
+      }
+      .section {
+        display: none;
+      }
+      .section.active {
+        display: block;
+      }
+      .toolbar {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 15px;
+        flex-wrap: wrap;
+      }
+      .toolbar input,
+      .toolbar select,
+      .form-row input,
+      .form-row select {
+        border: 1px solid #cbd7c8;
+        border-radius: 8px;
+        padding: 9px;
+        background: white;
+        color: var(--ink);
+        max-width: 100%;
+      }
+      .toolbar input {
+        flex: 1;
+        min-width: 130px;
+      }
+      .people-grid,
+      .business-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(205px, 1fr));
+        gap: 12px;
+      }
+      .person {
+        padding: 16px;
+        text-align: left;
+        font-weight: 400;
+      }
+      .person:hover {
+        transform: translateY(-2px);
+      }
+      .person strong {
+        font-size: 15px;
+      }
+      .person-top {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+      .person-face {
+        font-size: 25px;
+        background: #edf2e5;
+        width: 42px;
+        height: 42px;
+        border-radius: 10px;
+        display: grid;
+        place-items: center;
+      }
+      .person-stat {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 12px;
+        font-size: 11px;
+      }
+      .chart-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin-bottom: 18px;
+      }
+      .chart {
+        padding: 18px;
+      }
+      .chart svg {
+        width: 100%;
+        height: 170px;
+        display: block;
+      }
+      .business {
+        padding: 18px;
+      }
+      .business h3 {
+        margin: 8px 0;
+      }
+      .guide {
+        max-width: 850px;
+        padding: 24px;
+      }
+      .guide h2 {
+        margin: 22px 0 8px;
+      }
+      .guide h2:first-child {
+        margin-top: 0;
+      }
+      .guide p,
+      .guide li {
+        font-size: 14px;
+        line-height: 1.8;
+        color: #3c5650;
+      }
+      .form-row {
+        display: flex;
+        gap: 15px;
+        flex-wrap: wrap;
+        margin: 20px 0;
+      }
+      .form-row label {
+        font-size: 12px;
+        display: grid;
+        gap: 5px;
+      }
+      .experiment {
+        padding: 24px;
+      }
+      .experiment table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 12px;
+        margin-top: 15px;
+      }
+      .experiment td,
+      .experiment th {
+        text-align: left;
+        padding: 10px;
+        border-bottom: 1px solid var(--line);
+      }
+      .error {
+        padding: 12px;
+        background: #ffede5;
+        border: 1px solid #d89472;
+        color: #7c341a;
+        border-radius: 8px;
+        margin-bottom: 15px;
+        display: none;
+      }
+      .toast {
+        position: fixed;
+        bottom: 18px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #173f34;
+        color: #fff;
+        padding: 11px 20px;
+        border-radius: 10px;
+        z-index: 10;
+        box-shadow: 0 4px 18px #173f3420;
+        display: none;
+      }
+      .empty {
+        padding: 25px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .mobile-toggle {
+        display: none;
+      }
+      .hint {
+        font-size: 11px;
+        color: var(--muted);
+        margin-top: 10px;
+      }
+      .busy {
+        opacity: 0.6;
+      }
+      .ai-note {
+        background: #f0f4ea;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 10px 13px;
+        font-size: 11px;
+        color: #425e46;
+        margin-top: 15px;
+      }
+      a {
+        color: #215f49;
+      }
+      button.link {
+        border: 0;
+        padding: 0;
+        background: none;
+        text-decoration: underline;
+        font-size: inherit;
+      }
+      @media (min-width: 1550px) {
+        .scene {
+          height: 580px;
+        }
+      }
+      @media (max-width: 1150px) {
+        .shell {
+          grid-template-columns: 175px minmax(0, 1fr);
+        }
+        .sidebar {
+          padding: 22px 13px;
+        }
+        .main {
+          padding: 23px 18px;
+        }
+        .world-grid {
+          grid-template-columns: minmax(0, 1fr) 235px;
+        }
+        .metric {
+          padding: 12px;
+        }
+        .metric .value {
+          font-size: 21px;
+        }
+        .scene {
+          height: 460px;
+        }
+      }
+      @media (max-width: 900px) {
+        .world-grid {
+          grid-template-columns: 1fr;
+        }
+        .inspector {
+          min-height: 0;
+        }
+        .inspector .memory {
+          display: inline-block;
+          width: 45%;
+          vertical-align: top;
+          margin-right: 3%;
+        }
+        .scene {
+          height: 490px;
+        }
+        .metrics {
+          grid-template-columns: repeat(3, 1fr);
+        }
+        .metric:last-child {
+          grid-column: span 2;
+        }
+      }
+      @media (max-width: 620px) {
+        .shell {
+          display: block;
+        }
+        .sidebar {
+          display: none;
+        }
+        .sidebar.open {
+          display: flex;
+          position: fixed;
+          inset: 0 auto 0 0;
+          width: min(310px, 90vw);
+          overflow-y: auto;
+          z-index: 20;
+          box-shadow: 8px 0 30px #163c3833;
+        }
+        .main {
+          padding: 17px 12px;
+        }
+        .mobile-toggle {
+          display: block;
+          padding: 5px 10px;
+        }
+        header {
+          gap: 8px;
+          align-items: start;
+        }
+        h1 {
+          font-size: 27px;
+        }
+        header p {
+          font-size: 11px;
+        }
+        .date {
+          font-size: 10px;
+          padding: 7px;
+        }
+        .date strong {
+          font-size: 13px;
+        }
+        .metrics {
+          gap: 6px;
+        }
+        .metric {
+          padding: 9px;
+        }
+        .metric .value {
+          font-size: 20px;
+        }
+        .metric .eyebrow {
+          font-size: 8px;
+          letter-spacing: 0.6px;
+        }
+        .metric small {
+          font-size: 10px;
+        }
+        .scene {
+          height: 375px;
+        }
+        .chart-grid {
+          grid-template-columns: 1fr;
+        }
+        .inspector .memory {
+          width: 100%;
+        }
+        .card-head {
+          padding: 12px;
+        }
+        .world-foot {
+          padding: 10px;
+        }
+        .legend {
+          width: 100%;
+        }
+        .experiment {
+          padding: 15px;
+        }
+        .experiment table {
+          font-size: 10px;
+        }
+        .experiment td,
+        .experiment th {
+          padding: 6px;
+        }
+        .date span {
+          display: block;
+        }
+        .people-grid {
+          grid-template-columns: 1fr 1fr;
+        }
+        .person {
+          padding: 11px;
+        }
+        .person-top {
+          display: block;
+        }
+        .person-face {
+          margin-bottom: 8px;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          scroll-behavior: auto !important;
+          transition: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="sidebar" id="sidebar">
+        <div class="brand">❖ New Haven<span>LIVING WORLDS</span></div>
+        <nav aria-label="Main navigation">
+          <button class="active" data-tab="world"><b>⌂</b> Your world</button
+          ><button data-tab="citizens"><b>♧</b> Citizens</button
+          ><button data-tab="economy"><b>▥</b> Economy</button
+          ><button data-tab="chronicle"><b>≋</b> Chronicle</button
+          ><button data-tab="experiments"><b>⚗</b> Experiments</button
+          ><button data-tab="guide"><b>◎</b> Field guide</button>
+        </nav>
+        <div class="side-box">
+          <div class="eyebrow">Shape the story</div>
+          <label for="intervention">Council intervention</label
+          ><select id="intervention">
+            <option value="festival">Community festival</option>
+            <option value="aid">Food relief convoy</option>
+            <option value="storm">River storm</option>
+            <option value="education">Invest in education</option>
+            <option value="tax">Toggle income tax (8% / 15%)</option>
+            <option value="automation">Upgrade farm tools</option>
+            <option value="market">Food price cap</option></select
+          ><button id="intervene">Apply intervention ↗</button>
+          <p class="hint">
+            Actions have costs and consequences. Watch your citizens respond.
+          </p>
+        </div>
+        <div class="side-box">
+          <div class="eyebrow">World settings</div>
+          <label for="seed">Random seed</label
+          ><input
+            id="seed"
+            type="number"
+            value="7"
+            min="0"
+            max="2147483647"
+          /><label for="population">Starting citizens</label
+          ><input
+            id="population"
+            type="number"
+            value="100"
+            min="20"
+            max="250"
+          /><button id="reset">Create new world</button>
+          <div style="display: flex; gap: 6px">
+            <button id="save">↓ Save</button><button id="load">↑ Load</button>
+          </div>
+          <input
+            id="load-file"
+            type="file"
+            accept=".json,application/json"
+            hidden
+            style="display: none"
+          />
+        </div>
+        <div class="side-footer">
+          <span class="status-dot"></span> A world of its own<br />Seeded.
+          Inspectable. Full of possibility.
+        </div>
+      </aside>
+      <main class="main">
+        <header>
+          <div>
+            <div class="eyebrow">A civilisation in the making</div>
+            <h1 id="page-title">A little world. A life of its own.</h1>
+            <p id="page-subtitle">
+              Every citizen has a story. See what happens next.
+            </p>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center">
+            <button
+              class="mobile-toggle"
+              id="menu"
+              aria-label="Open navigation"
+            >
+              ☰
+            </button>
+            <div class="date">
+              <strong id="day-label">Day 0</strong><br /><span
+                id="weather-label"
+                >Spring · Clear</span
+              >
+            </div>
+          </div>
+        </header>
+        <div id="error" class="error" role="alert"></div>
+        <div class="metrics" id="metrics"></div>
+        <section class="section active" id="world">
+          <div class="world-grid">
+            <div>
+              <div class="card">
+                <div class="card-head">
+                  <div>
+                    <h2>The settlement</h2>
+                    <span class="muted"
+                      >A small place. An unfolding story.</span
+                    >
+                  </div>
+                  <span class="tag" id="live-status">PAUSED</span>
+                </div>
+                <div class="world-foot" aria-label="Time controls">
+                  <div class="time-controls">
+                    <button class="primary" id="play">▶ Play</button>
+                    <button id="step">+1 day</button>
+                    <button id="step10" aria-label="Advance ten days">+10 days</button>
+                    <select id="speed" aria-label="Simulation speed">
+                      <option value="2500">1×</option>
+                      <option value="1400">2×</option>
+                      <option value="650">4×</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="scene" id="scene">
+                  <canvas
+                    id="world-canvas"
+                    tabindex="0"
+                    role="img"
+                    aria-label="Interactive isometric town. Drag to pan, use plus and minus to zoom. Select citizens on the map or use the Citizens page for keyboard access."
+                  ></canvas>
+                  <div class="scene-label" id="map-label">
+                    NEW HAVEN · EST. DAY 0
+                  </div>
+                  <div class="tooltip" id="tooltip"></div>
+                  <div class="map-tools">
+                    <button id="zoom-out" aria-label="Zoom out">−</button
+                    ><button id="zoom-in" aria-label="Zoom in">+</button
+                    ><button id="recenter" aria-label="Recenter map">⌖</button>
+                  </div>
+                </div>
+                <div class="world-foot">
+                  <span class="muted">Drag to explore · Select a resident</span>
+                  <div class="legend">
+                    <i style="background: #eac55f"></i>Thriving<i
+                      style="background: #78a891"
+                    ></i
+                    >Content<i style="background: #cf7254"></i>Struggling
+                  </div>
+                </div>
+              </div>
+              <div class="card chronicle">
+                <div class="card-head">
+                  <h2>Life, lately</h2>
+                  <button class="link" data-tab="chronicle">
+                    All stories →
+                  </button>
+                </div>
+                <div class="event-list" id="recent-events"></div>
+              </div>
+            </div>
+            <aside
+              class="card inspector"
+              id="inspector"
+              aria-live="polite"
+            ></aside>
+          </div>
+        </section>
+        <section class="section" id="citizens">
+          <div class="toolbar">
+            <input
+              id="search"
+              placeholder="Find a citizen by name, job, or goal…"
+              aria-label="Search citizens"
+            /><select id="sort" aria-label="Sort citizens">
+              <option value="name">Name A–Z</option>
+              <option value="happiness">Happiest first</option>
+              <option value="wealth">Wealthiest first</option>
+              <option value="health">Lowest health first</option></select
+            ><span class="muted" id="people-count"></span>
+          </div>
+          <div class="people-grid" id="people-grid"></div>
+        </section>
+        <section class="section" id="economy">
+          <div class="chart-grid" id="charts"></div>
+          <div class="card-head" style="border: 0; padding-left: 0">
+            <h2>The businesses behind the town</h2>
+          </div>
+          <div class="business-grid" id="businesses"></div>
+        </section>
+        <section class="section" id="chronicle">
+          <div class="toolbar">
+            <input
+              id="event-search"
+              placeholder="Search the town’s history…"
+              aria-label="Search events"
+            /><select id="event-kind" aria-label="Filter event type">
+              <option value="all">Every kind of story</option>
+            </select>
+          </div>
+          <div class="card event-list" id="all-events"></div>
+        </section>
+        <section class="section" id="experiments">
+          <div class="card experiment">
+            <span class="eyebrow">The world is your laboratory</span>
+            <h2 style="margin-top: 7px">One change. Two possible futures.</h2>
+            <p>
+              Run paired worlds from the same seeds. Compare an untouched world
+              with a council intervention.
+            </p>
+            <div class="form-row">
+              <label
+                >Number of seeds<input
+                  id="experiment-seeds"
+                  type="number"
+                  min="1"
+                  max="10"
+                  value="3" /></label
+              ><label
+                >Days per world<input
+                  id="experiment-horizon"
+                  type="number"
+                  min="30"
+                  max="365"
+                  value="90" /></label
+              ><label
+                >World B intervention<select id="experiment-scenario">
+                  <option value="storm">River storm</option>
+                  <option value="education">Education investment</option>
+                  <option value="automation">Upgrade farm tools</option>
+                  <option value="aid">Food relief</option>
+                  <option value="festival">Community festival</option>
+                </select></label
+              >
+            </div>
+            <button class="primary" id="run-experiment">
+              Run paired experiment →
+            </button>
+            <p class="hint">
+              Runs separately from your town. Both worlds share starting
+              conditions; the intervention changes World B.
+            </p>
+            <div id="experiment-results"></div>
+            <div class="ai-note">
+              Rules-based simulation is the default. Optional event-triggered AI
+              cognition can be configured by the app owner. Results are
+              exploratory simulation outcomes, not evidence about real
+              societies.
+            </div>
+          </div>
+        </section>
+        <section class="section" id="guide">
+          <div class="card guide">
+            <h2>Welcome to New Haven</h2>
+            <p>
+              Start time and follow a resident. People work, eat, rest, build
+              relationships, remember milestones, and respond to a changing
+              town. Click a resident in the world, or browse Citizens to choose
+              someone to follow.
+            </p>
+            <h2>A world you can touch</h2>
+            <p>
+              Drag the map to explore. Use + and − to zoom. Pause any time to
+              inspect a story. One day advances the whole town; +10 lets a
+              larger chapter unfold. Faster playback changes how often days
+              advance, not the rules of the world.
+            </p>
+            <h2>Give the council a nudge</h2>
+            <p>
+              Fund a festival, bring food relief, invest in education, change
+              taxation, or automate work. Each action changes resources or
+              opportunities. A storm can expose how resilient your settlement
+              is. Read the chronicle and citizen memories to see the
+              consequences.
+            </p>
+            <h2>People, not just percentages</h2>
+            <p>
+              Each resident has needs, personality, a goal, wealth, and a social
+              world. Happiness and health tell different stories. Watch hunger,
+              energy, friendships, and personal memories together to understand
+              what a resident needs.
+            </p>
+            <h2>Rewind, replay, compare</h2>
+            <p>
+              The seed fixes the starting world and random sequence. Save
+              downloads a snapshot you can load later. Creating a new world
+              replaces the current session, so save first if you want to keep
+              its story. Experiments run independent paired worlds and report
+              differences across multiple seeds.
+            </p>
+            <h2>Where AI fits</h2>
+            <p>
+              The town runs without an AI service or token cost. If enabled by
+              the owner, important events may request bounded decisions from an
+              AI provider; ordinary activities remain rules-based. AI-enabled
+              runs are not guaranteed to replay identically. Never enter API
+              keys into a world save or this page.
+            </p>
+            <h2>What this world can tell you</h2>
+            <p>
+              New Haven is a model: its outcomes follow designed rules and
+              assumptions. Try hypotheses, inspect outcomes, and look for
+              surprising stories. Experiments are not validated predictions of
+              real-world economics, politics, or human behavior.
+            </p>
+          </div>
+        </section>
+      </main>
+    </div>
+    <div class="toast" id="toast" role="status"></div>
+    <script src="app.js"></script>
+  </body>
+</html>
