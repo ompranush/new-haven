@@ -23,6 +23,10 @@ class Citizen:
     memories: list = field(default_factory=list)
     relationships: dict = field(default_factory=dict)
     parent_ids: list = field(default_factory=list)
+    gender: str = "unspecified"
+    political_economic: float = 0.0
+    political_social: float = 0.0
+    daily_wage: float = 0.0
 
     def remember(self, text, day=0):
         self.memories.append({"day": day, "text": text})

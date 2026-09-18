@@ -18,3 +18,4 @@ jobs:
           node-version: '20'
       - run: node --check frontend/app.js
       - run: node --check frontend/world.js
+      - run: node --check frontend/features.js

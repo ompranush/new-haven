@@ -8,6 +8,218 @@
   --gold: #e5be78;
   --panel: #192733;
 }
+textarea {
+  font: inherit;
+  width: 100%;
+  min-height: 140px;
+  resize: vertical;
+  color: var(--ink);
+  background: #101f2d;
+  border: 1px solid #617b90;
+  border-radius: 6px;
+  padding: 14px;
+  line-height: 1.6;
+}
+textarea:focus-visible {
+  outline: 3px solid #f0c277;
+  outline-offset: 3px;
+}
+[hidden] {
+  display: none !important;
+}
+.command-card,
+.settings-card {
+  padding: 26px;
+  max-width: 1000px;
+}
+.command-card h2,
+.settings-card h2 {
+  font-size: 26px;
+  margin: 8px 0;
+}
+.command-card > p,
+.settings-card > p {
+  color: var(--muted);
+  max-width: 780px;
+}
+.command-examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 10px 0 18px;
+}
+.command-examples button {
+  font-size: 11px;
+  border-style: dashed;
+}
+.command-preview {
+  border-top: 1px solid var(--line);
+  margin-top: 24px;
+  padding-top: 20px;
+}
+.command-preview h3 {
+  margin-top: 8px;
+  font-size: 18px;
+}
+.command-preview li,
+.command-card .goal li {
+  margin: 8px 0;
+  font-size: 13px;
+}
+.settings-card form {
+  max-width: 650px;
+  margin-top: 22px;
+}
+.settings-card form > label {
+  margin-top: 16px;
+}
+.checkbox-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+}
+.checkbox-label input {
+  margin-top: 4px;
+  flex-shrink: 0;
+}
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 20px;
+}
+.situation-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin: 16px 0;
+}
+.situation-card {
+  padding: 22px;
+}
+.situation-card h2 {
+  font-size: 20px;
+  margin: 8px 0 15px;
+}
+.situation-card > p {
+  font-size: 12px;
+  color: var(--muted);
+}
+.situation-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  margin: 14px 0;
+}
+.situation-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.situation-stat span {
+  font-size: 12px;
+  color: #c7d8e7;
+}
+.situation-stat strong {
+  font-size: 24px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.situation-stat small {
+  font-size: 10px;
+  color: #b4c8d8;
+  max-width: 240px;
+}
+.opinion-axis {
+  margin: 18px 0 8px;
+}
+.opinion-axis > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #d6e1eb;
+}
+.axis-track {
+  position: relative;
+  margin: 12px 5px 6px;
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #83b8b1, #526378, #d4ad70);
+}
+.axis-track:after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -2px;
+  height: 12px;
+  border-left: 1px solid #fff9;
+}
+.axis-track i {
+  position: absolute;
+  top: -4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 3px solid #fff;
+  background: #142130;
+  transform: translateX(-50%);
+  z-index: 1;
+}
+.opinion-axis small {
+  font-size: 10px;
+  color: var(--muted);
+}
+.count-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0;
+}
+.count-pill {
+  background: #263b4b;
+  border: 1px solid #405c71;
+  border-radius: 4px;
+  padding: 4px 7px;
+  font-size: 10px;
+}
+.count-pill strong {
+  color: #fff;
+  margin-left: 5px;
+}
+.equality-card {
+  grid-column: 1/-1;
+}
+.table-scroll {
+  overflow: auto;
+}
+.situation-card details {
+  margin-top: 15px;
+}
+@media (max-width: 1200px) {
+  .topbar {
+    flex-wrap: wrap;
+  }
+  #top-nav {
+    overflow: auto;
+  }
+  nav button {
+    white-space: nowrap;
+  }
+}
+@media (max-width: 700px) {
+  .situation-grid {
+    grid-template-columns: 1fr;
+  }
+  .situation-card,
+  .command-card,
+  .settings-card {
+    padding: 18px;
+  }
+  .situation-stat strong {
+    font-size: 21px;
+  }
+}
 * {
   box-sizing: border-box;
 }
@@ -959,8 +1171,21 @@ summary {
 /* A Streamlit component is taller than the browser viewport. A fixed drawer
    would therefore become an empty full-page overlay while the parent scrolls. */
 @media (max-width: 960px) {
-  .sidebar.open { position:static; width:auto; max-height:none; box-shadow:none; border-bottom:1px solid var(--line); }
-  .sidebar.open .metrics { grid-template-columns:1fr 1fr; column-gap:20px; }
-  .topbar>.mobile-toggle { padding:6px 10px; }
-  .mode-badge { max-width:140px; }
+  .sidebar.open {
+    position: static;
+    width: auto;
+    max-height: none;
+    box-shadow: none;
+    border-bottom: 1px solid var(--line);
+  }
+  .sidebar.open .metrics {
+    grid-template-columns: 1fr 1fr;
+    column-gap: 20px;
+  }
+  .topbar > .mobile-toggle {
+    padding: 6px 10px;
+  }
+  .mode-badge {
+    max-width: 140px;
+  }
 }

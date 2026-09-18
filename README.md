@@ -17,7 +17,7 @@ Try a storm, a festival, food relief, education, a different income tax, or bett
 - Limited relief, cooldowns, scaled upgrade costs and diminishing benefits. Citizens sacrifice wages to forage or participate in recovery.
 - A deterministic Python engine with personality, goals/progress, needs/rest, work, wages, taxes, business accounts, food purchases, and public meal support.
 - Directional friendships/rivalries, adult marriages, children with parents, ageing, deaths and bereavement. Event-driven memories preserve personal context.
-- World, Citizens, Economy, Chronicle, Experiments and Field Guide views. Charts give each metric its own scale.
+- World, Citizens, Village, God Mode, Settings, Chronicle, Experiments and Field Guide views. Village covers politics, relationships, inequality, crime and gender outcomes alongside the economy.
 - Browser save/load with versioned JSON and random-generator state; validation rejects malformed worlds. Saves never contain API credentials.
 - Paired-seed experiments: baseline versus intervention, or rules versus explicitly requested AI reflection. Aggregate differences, per-seed outcomes and variation are shown separately.
 - Optional OpenAI Responses API cognition with constrained actions, no automatic retries, an explicit call limit, and recorded decisions. Off by default.
@@ -27,11 +27,17 @@ Try a storm, a festival, food relief, education, a different income tax, or bett
 
 **Default citizens are rule-based agents, not autonomous language models.** Personality, needs and memories influence programmed responses. The interface labels these decisions RULES, and completed model decisions AI, with their actual effects. Graphics are not intelligence.
 
-Expand **Optional AI cognition** below the interface, enable it, and enter your own OpenAI API key and a model supporting structured outputs. Keys stay in the current server session and are not sent to the Canvas component or included in saves. Use **Forget API key** to clear it. No shared owner key is exposed to public visitors.
+Open **Settings**, enter your OpenAI API key, choose a model supporting structured outputs, and explicitly enable paid requests. The password field sends the key to your server session, then clears. It is not echoed back, stored in browser local storage, or included in world saves. Use **Forget API key** to clear it. No shared owner key is exposed to public visitors.
 
-Only **Reflect on an event** or an explicitly selected **AI comparison** makes paid requests. Eligible events include loss, conflict, friendship, marriage and civic petitions. The model can propose `seek_work`, `help_neighbor`, `rest`, or `organize`; the engine validates the action and applies bounded changes. Plain simulation ticks never make API calls.
+Only **Interpret command**, **Reflect on an event**, or an explicitly selected **AI comparison** makes paid requests. Eligible reflection events include loss, conflict, friendship, marriage and civic petitions. Reflection can propose `seek_work`, `help_neighbor`, `rest`, or `organize`; the engine validates the action and applies bounded changes. Plain simulation ticks never make API calls.
 
-The call limit defaults to 10 and counts failed requests. Responses are capped at 400 output tokens. This is a request limit, not a guaranteed currency budget; provider prices and model token use vary. AI comparisons assign the same available call allowance to each seed and report actual use. AI outputs themselves are not deterministic, but their applied decisions are recorded in saves. The provider adapter is covered with mocked responses; live paid calls require your key.
+The shared call limit defaults to 10 and counts failed requests. Responses are capped at 400 output tokens for reflection and 3,000 for God Mode. This is a request limit, not a guaranteed currency budget; provider prices and model token use vary. AI comparisons assign the same available call allowance to each seed and report actual use. AI outputs themselves are not deterministic, but their applied decisions are recorded in saves. The provider adapter is covered with mocked responses; live paid calls require your key.
+
+### God Mode
+
+Type a command such as “Deliver 200 meals to the granary”, then **Interpret command**. Review the exact numerical effects and limitations before confirming. Confirmation applies the validated plan without another API call. Advancing or changing the world invalidates an old preview.
+
+Supported operations include existing council interventions, bounded food/money/material grants or removals, building damage and funded repairs, the two supported tax rates, and relationship changes between named citizens. A plan contains at most six actions, applied together or not at all. External grants are explicitly accounted for, not disguised as earned income. Unsupported ideas are reported as limitations: the model cannot create arbitrary new mechanics or execute code.
 
 Implementation follows the [official structured outputs documentation](https://developers.openai.com/api/docs/guides/structured-outputs).
 
@@ -56,6 +62,7 @@ python -m src.civilisation --seed 7 --population 100 --days 365
 python -m src.civilisation --compare education --seeds 3 --days 90
 node --check frontend/app.js  # optional frontend development checks
 node --check frontend/world.js
+node --check frontend/features.js
 ```
 
 ## Structure
@@ -66,6 +73,10 @@ frontend/index.html             Interface structure
 frontend/style.css              High-contrast responsive layout
 frontend/app.js                 Interactions, ledgers and inspection
 frontend/world.js               State-driven voxel-style diorama
+frontend/features.js            Settings, God Mode and village indicators
+src/civilisation/controller.py  Session action validation and confirmation
+src/civilisation/godmode.py     Structured command interpretation and atomic effects
+src/civilisation/society.py     Social indicators and observational definitions
 src/civilisation/models.py      Citizen and world records
 src/civilisation/sim.py         Economy, social/life rules, save/load
 src/civilisation/cognition.py   Optional constrained event reflection

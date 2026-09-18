@@ -5,6 +5,7 @@ import random
 from dataclasses import asdict
 from statistics import mean
 from .models import Citizen, World
+from .society import initialise_citizen, advance_society, situation, validate_society
 
 NAMES = ["Maya", "Theo", "Iris", "Noah", "Ava", "Leo", "Sana", "Finn", "Nia", "Owen", "Arjun", "Ada"]
 SURNAMES = ["Carter", "Singh", "Rivera", "Chen", "Okafor", "Reed", "Park", "Silva"]
@@ -30,6 +31,8 @@ class Simulation:
         self.resources = {"wood": population*1.5, "stone": population*1.0}
         self.cooldowns = {}
         self.ledger = {}
+        self.crime_events = []
+        self.society_observations = []
         self.businesses = [{"id": i, "name": name, "kind": kind, "job": job, "x": x, "y": y, "workers": [], "cash": population*8., "profit": 0., "capacity": max(1, math.ceil(population*(0.27 if i == 0 else 0.115)))} for i, (name, kind, job, x, y) in enumerate(SITES)]
         self.buildings = [{k: b[k] for k in ("id", "name", "kind", "x", "y")} for b in self.businesses]
         self.buildings += [{"id": 8, "name": "Council Hall", "kind": "council", "x": 12, "y": 5}]
@@ -42,6 +45,7 @@ class Simulation:
             home = self.buildings[9+i%8]
             c = Citizen(i, f"{self.rng.choice(NAMES)} {self.rng.choice(SURNAMES)} {i+1}", self.rng.randint(18,62), None, self.rng.uniform(35,140), self.rng.uniform(55,80), {t: round(self.rng.random(),3) for t in TRAITS}, self.rng.choice(GOALS), x=home["x"], y=home["y"])
             c.remember("Arrived in New Haven, ready to begin again.")
+            initialise_citizen(c, self.seed)
             people.append(c)
         self.world = World(0, population*4., people, treasury=population*6.)
         self.ledger = {"food_opening":self.world.food,"food_produced":0.,"food_consumed":0.,"food_lost":0.,"food_imported":0.,"food_closing":self.world.food,"money_opening":self._money(),"trade_income":0.,"maintenance_cost":0.,"repair_cost":0.,"relief_cost":0.,"local_spending":0.,"money_closing":self._money()}
@@ -110,6 +114,7 @@ class Simulation:
                     self._hire(c,min(options,key=lambda b:len(b["workers"])/b["capacity"]))
                     self._event("work","A fresh start",f"{c.name} found work as a {c.job}.",c)
         for c in people:
+            c.daily_wage = 0.
             c.age += 1/365
             home = self.buildings[9+c.id%8]
             target = (home["x"],home["y"])
@@ -145,6 +150,7 @@ class Simulation:
                     b["profit"] -= upkeep
                     self.ledger["maintenance_cost"] += upkeep
                 paid = min(wage,b["cash"])
+                c.daily_wage = paid
                 b["cash"] -= paid
                 b["profit"] -= paid
                 c.wealth += paid*(1-self.policies["tax_rate"])
@@ -227,6 +233,7 @@ class Simulation:
             c.goal_progress = self._goal_progress(c)
         self._socialise()
         self._life_events()
+        advance_society(self)
         if w.day%30 == 0 and self.living:
             c = min(self.living,key=lambda c:c.happiness)
             self._event("politics","Citizens petition the council",f"{c.name} asked for {'food security' if w.food < len(people) else 'better schools and fair wages'}.",c)
@@ -340,6 +347,7 @@ class Simulation:
             if not partner.alive or not 22<=partner.age<=50 or self.rng.random()>=0.0005:
                 continue
             baby = Citizen(len(self.world.citizens),f"{self.rng.choice(NAMES)} {c.name.split()[1]} {len(self.world.citizens)+1}",0,None,0,75,{t:round(self.rng.random(),3) for t in TRAITS},self.rng.choice(GOALS),x=c.x,y=c.y,parent_ids=[c.id,partner.id])
+            initialise_citizen(baby, self.seed)
             baby.remember(f"Born into the household of {c.name} and {partner.name}.",self.world.day)
             self.world.citizens.append(baby)
             self._event("birth","A new life",f"{c.name} and {partner.name} welcomed {baby.name}.",c)
@@ -466,10 +474,10 @@ class Simulation:
         del self.world.history[:-2000]
 
     def snapshot(self):
-        return json.loads(json.dumps({**self.summary(),"seed":self.seed,"width":24,"height":20,"citizens":[asdict(c) for c in self.world.citizens],"businesses":self.businesses,"buildings":self.buildings,"terrain":self.terrain,"events":self.world.events,"history":self.world.history,"policies":self.policies,"pending_decisions":self.pending_decisions,"cognition_events":self.pending_decisions,"decision_log":self.decision_log,"active_effects":self.active_effects,"resources":self.resources,"ledger":self.ledger,"cooldowns":self.cooldowns,"interventions":self.intervention_options()}))
+        return json.loads(json.dumps({**self.summary(),"situation":situation(self),"seed":self.seed,"width":24,"height":20,"citizens":[asdict(c) for c in self.world.citizens],"businesses":self.businesses,"buildings":self.buildings,"terrain":self.terrain,"events":self.world.events,"history":self.world.history,"policies":self.policies,"pending_decisions":self.pending_decisions,"cognition_events":self.pending_decisions,"decision_log":self.decision_log,"active_effects":self.active_effects,"resources":self.resources,"ledger":self.ledger,"cooldowns":self.cooldowns,"interventions":self.intervention_options()}))
 
     def save(self):
-        return json.dumps({"version":self.VERSION,"seed":self.seed,"rng":self.rng.getstate(),"world":asdict(self.world),"businesses":self.businesses,"buildings":self.buildings,"active_effects":self.active_effects,"resources":self.resources,"ledger":self.ledger,"cooldowns":self.cooldowns,"policies":self.policies,"pending_decisions":self.pending_decisions,"decision_log":self.decision_log,"event_counter":self.event_counter},allow_nan=False)
+        return json.dumps({"version":self.VERSION,"seed":self.seed,"rng":self.rng.getstate(),"world":asdict(self.world),"crime_events":self.crime_events,"society_observations":self.society_observations,"businesses":self.businesses,"buildings":self.buildings,"active_effects":self.active_effects,"resources":self.resources,"ledger":self.ledger,"cooldowns":self.cooldowns,"policies":self.policies,"pending_decisions":self.pending_decisions,"decision_log":self.decision_log,"event_counter":self.event_counter},allow_nan=False)
 
     @classmethod
     def load(cls,text):
@@ -494,6 +502,12 @@ class Simulation:
                 raise ValueError("Invalid world")
             sim = cls(data["seed"],2)
             citizens = [Citizen(**record) for record in w["citizens"]]
+            for c, record in zip(citizens, w["citizens"]):
+                fields = {"gender","political_economic","political_social","daily_wage"}
+                if not fields.intersection(record):
+                    initialise_citizen(c, sim.seed)
+                elif not fields.issubset(record):
+                    raise ValueError("Incomplete citizen society state")
             for i,c in enumerate(citizens):
                 if c.id!=i or not isinstance(c.alive,bool) or c.job not in {None,*JOBS} or c.goal not in GOALS or not isinstance(c.name,str) or len(c.name)>200:
                     raise ValueError("Invalid citizen")
@@ -557,6 +571,9 @@ class Simulation:
                 return tuple(tuples(v) for v in value) if isinstance(value,list) else value
             sim.rng.setstate(tuples(data["rng"]))
             sim.world = World(**{**w,"citizens":citizens})
+            sim.crime_events = data.get("crime_events", [])
+            sim.society_observations = data.get("society_observations", [])
+            validate_society(sim)
             sim.businesses,sim.policies = businesses,p
             # Version-one saves predate physical damage; migrate them as intact worlds.
             buildings = data.get("buildings",sim.buildings)

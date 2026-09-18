@@ -34,7 +34,15 @@ Intervention experiments start two worlds from each seed and attempt one action 
 
 AI comparisons use the same starting seeds with no council intervention. Treatment may reflect on eligible events, within an equal per-seed call allowance. The selected council scenario is ignored in this mode. Some seeds may produce fewer eligible events. Actual AI calls are listed per run. External outputs are variable; recorded decisions explain resulting differences but do not establish causation about human societies.
 
-## Storage and scale
+## Village indicators and God Mode
+
+Political preferences are fictional economic and social axes, not real party affiliations. Scarcity, tax and education influence explicit toy rules; these are not autonomous elections. Wealth inequality uses living citizens' balances: Gini ranges from 0 to 1, alongside median wealth and the richest tenth's share. Friendship/rivalry counts use unique pairs and their mean directional score; isolation means no strong friendship or spouse.
+
+Crime records simulated theft, transferring existing money from victim to offender. The dashboard reports up to 30 observed days and incidents per 1,000 citizen-days, not a fabricated annual crime percentage. No observation is shown as “Not observed”, not zero. Gender comparisons report adult employment, wealth and observed wages by group; there is no invented composite equality score. Gender does not affect hiring, pay, political updates or crime selection. Small-group differences are descriptive random outcomes, not evidence about real populations. Identity and political initialization use independent seeded randomness; observations survive save/load.
+
+God Mode translates text into a strict, bounded action schema. The server validates identifiers, amounts, affordability and cooldowns, previews effects on a cloned world, then requires confirmation against the exact unchanged world state. It never executes model-generated code. Resource overrides are explicitly external additions/removals in the ledger. Building repair consumes the usual coins and materials. Relationship changes cannot force marriage or rewrite identity. Refused, incomplete, malformed or unaffordable plans leave the world unchanged; requests still count toward the API call limit.
+
+## Session persistence
 
 Each browser session has an independent world. Save files are the persistence mechanism; there is no account database or shared multiplayer world. The interface accepts save files up to 8 MB. The engine retains at most 30 memories per citizen, 200 town events, 2,000 metric records, 20 pending reflections and 100 combined rules/AI decisions. It caps lifetime citizen records at 2,000.
 

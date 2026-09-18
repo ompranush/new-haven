@@ -21,10 +21,12 @@
         <nav aria-label="Main navigation">
           <button class="active" data-tab="world"><b>⌂</b> Your world</button
           ><button data-tab="citizens"><b>♧</b> Citizens</button
-          ><button data-tab="economy"><b>▥</b> Economy</button
+          ><button data-tab="economy"><b>▥</b> Village</button
           ><button data-tab="chronicle"><b>≋</b> Chronicle</button
           ><button data-tab="experiments"><b>⚗</b> Experiments</button
-          ><button data-tab="guide"><b>◎</b> Field guide</button>
+          ><button data-tab="godmode"><b>ϟ</b> God Mode</button
+          ><button data-tab="settings"><b>⚙</b> Settings</button
+          ><button data-tab="guide"><b>◎</b> Guide</button>
         </nav>
         <div class="side-box">
           <div class="eyebrow">Shape the story</div>
@@ -213,6 +215,8 @@
           <div class="people-grid" id="people-grid"></div>
         </section>
         <section class="section" id="economy">
+          <div id="village-situation"></div>
+          <div class="card-head"><h2>Resources and livelihoods</h2></div>
           <div class="chart-grid" id="charts"></div>
           <div class="card-head" style="border: 0; padding-left: 0">
             <h2>The businesses behind the town</h2>
@@ -280,6 +284,120 @@
             </div>
           </div>
         </section>
+        <section class="section" id="godmode">
+          <div class="card command-card">
+            <span class="eyebrow"
+              >Your intent → AI interpretation → confirmed change</span
+            >
+            <h2>Speak to the world</h2>
+            <p>
+              Describe what you want to happen. Your chosen model translates it
+              into supported simulation actions. Review the exact effects before
+              applying them.
+            </p>
+            <div id="god-access" class="ai-note"></div>
+            <label for="god-command">Your command</label
+            ><textarea
+              id="god-command"
+              rows="5"
+              maxlength="2000"
+              placeholder="Deliver 200 meals to the village, then set income tax to 15%."
+            ></textarea>
+            <div class="command-examples">
+              <button data-command="Deliver 200 meals to the granary.">
+                Deliver food</button
+              ><button data-command="Flood the village.">
+                Introduce a flood</button
+              ><button data-command="Raise income tax to 15%.">
+                Change taxes
+              </button>
+            </div>
+            <button class="primary" id="god-interpret">
+              Interpret command · uses API</button
+            ><button id="god-open-settings" data-tab="settings">
+              AI settings
+            </button>
+            <p class="hint">
+              Interpretation uses a paid API call. Confirmation does not.
+              Supported: resources, existing council actions, building
+              damage/repair, the two supported tax rates, and relationships
+              between named citizens. New simulation mechanics cannot be created
+              by a text command.
+            </p>
+            <div id="god-preview" aria-live="polite"></div>
+            <div id="god-result" aria-live="polite"></div>
+          </div>
+        </section>
+        <section class="section" id="settings">
+          <div class="card settings-card">
+            <span class="eyebrow"
+              >Your key · your model · explicit requests only</span
+            >
+            <h2>AI settings</h2>
+            <p>
+              Your API key is sent to this app's server session over the
+              connection. It is never returned in world snapshots, included in
+              save files, or stored in browser local storage. Session expiry
+              removes it.
+            </p>
+            <form id="ai-settings-form" autocomplete="off">
+              <label for="api-key">OpenAI API key</label
+              ><input
+                id="api-key"
+                type="password"
+                autocomplete="off"
+                maxlength="500"
+                placeholder="Paste a key, or leave blank to keep the saved key"
+              />
+              <label for="ai-model">Thinking model</label
+              ><select id="ai-model">
+                <option value="gpt-4.1-mini">GPT-4.1 mini</option>
+                <option value="gpt-4.1">GPT-4.1</option>
+                <option value="gpt-5-mini">GPT-5 mini</option>
+                <option value="custom">Custom model ID</option>
+              </select>
+              <div id="custom-model-field" hidden>
+                <label for="custom-model"
+                  >Structured-output capable model ID</label
+                ><input
+                  id="custom-model"
+                  maxlength="120"
+                  placeholder="Exact API model ID"
+                />
+              </div>
+              <p class="hint">
+                Availability depends on your API account. All AI features use
+                this model. Reasoning models may take longer and consume more
+                tokens; no model is called just by saving settings.
+              </p>
+              <label for="ai-call-limit">Maximum calls this session</label
+              ><input
+                id="ai-call-limit"
+                type="number"
+                min="1"
+                max="50"
+                value="10"
+              />
+              <label class="checkbox-label"
+                ><input id="ai-enable" type="checkbox" /> Allow paid AI calls
+                when I explicitly request interpretation, reflection or an AI
+                experiment</label
+              >
+              <div class="button-row">
+                <button class="primary" id="save-ai-settings" type="submit">
+                  Save AI settings</button
+                ><button id="forget-ai" type="button">Forget API key</button>
+              </div>
+            </form>
+            <div id="settings-state" class="goal" aria-live="polite"></div>
+            <p class="hint">
+              The limit counts failed attempts too and is shared by God Mode,
+              citizen reflection and research. It is a call limit, not a
+              currency budget. Ordinary Play never calls a model. Never paste
+              secrets into God Mode commands.
+            </p>
+          </div>
+        </section>
         <section class="section" id="guide">
           <div class="card guide">
             <h2>Welcome to New Haven</h2>
@@ -330,9 +448,9 @@
               Optional AI sends one important event and citizen context to a
               language model. It chooses a permitted action and explains why.
               Actual model decisions are labelled AI in the decision history.
-              Enable it with your own key in the panel below the app. Only
-              explicit reflection requests or AI experiments spend tokens;
-              ordinary Play remains rules-only.
+              Enable it with your own key in Settings. Only explicit God Mode
+              interpretation, reflection requests or AI experiments spend
+              tokens; ordinary Play remains rules-only.
             </p>
             <h2>Consequences take time</h2>
             <p>
@@ -362,6 +480,7 @@
     </div>
     <div class="toast" id="toast" role="status"></div>
     <script src="world.js"></script>
+    <script src="features.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

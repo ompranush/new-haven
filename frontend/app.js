@@ -77,9 +77,16 @@ function updateControls() {
     "#run-experiment",
   ].forEach((id) => ($(id).disabled = busy));
   renderIntervention();
+  updateFeatureControls();
 }
 function setTab(tab) {
   activeTab = tab;
+  if (["godmode", "settings"].includes(tab)) {
+    playing = false;
+    schedule();
+    updateControls();
+  }
+  if (tab !== "settings") $("#api-key").value = "";
   $$(".section").forEach((el) => el.classList.toggle("active", el.id === tab));
   $$("nav button").forEach((el) =>
     el.classList.toggle("active", el.dataset.tab === tab),
@@ -96,8 +103,8 @@ function setTab(tab) {
       "Individual lives. Shared possibilities.",
     ],
     economy: [
-      "What keeps a world going",
-      "Follow resources, livelihoods, and the balance between them.",
+      "The whole village, in view",
+      "Politics, belonging, opportunity, safety and shared prosperity.",
     ],
     chronicle: [
       "A history, still being written",
@@ -106,6 +113,14 @@ function setTab(tab) {
     experiments: [
       "Explore another possibility",
       "Same beginning. Different choices. What changes?",
+    ],
+    godmode: [
+      "God Mode",
+      "Turn your intent into concrete, reviewable changes.",
+    ],
+    settings: [
+      "AI settings",
+      "Choose the model and control when your key is used.",
     ],
     guide: [
       "A field guide to living worlds",
@@ -367,6 +382,7 @@ function chart(label, key, color) {
   return `<div class="card chart"><div class="eyebrow">${label}</div><div style="font-size:25px;margin-top:5px">${fmt(values.at(-1) ?? S[key])}</div><svg viewBox="0 0 480 165" role="img" aria-label="${label} over ${history.length} recorded days"><line x1="28" y1="121" x2="468" y2="121" stroke="#dce5dc"/><text x="28" y="155" font-size="11" fill="#516560">Day ${esc(history[0]?.day ?? 0)}</text><text x="468" y="155" text-anchor="end" font-size="11" fill="#516560">Day ${esc(history.at(-1)?.day ?? S.day ?? 0)}</text>${values.length > 1 ? `<polygon points="28,121 ${points} 468,121" fill="${color}" opacity=".1"/><polyline points="${points}" fill="none" stroke="${color}" stroke-width="2.5"/>` : '<text x="240" y="80" text-anchor="middle" fill="#516560" font-size="12">Advance time to reveal the trend</text>'}</svg></div>`;
 }
 function renderEconomy() {
+  renderVillage();
   $("#charts").innerHTML =
     chart("Population", "population", "#447a58") +
     chart("Average happiness", "happiness", "#bd863e") +
@@ -499,7 +515,7 @@ $("#run-experiment").onclick = () => {
 const aiPanel = document.createElement("div");
 aiPanel.className = "side-box";
 aiPanel.innerHTML =
-  '<div class="eyebrow">Event cognition</div><p id="ai-status" class="hint">Rules engine active. Optional AI setup is below the app.</p><button id="reflect" disabled>Reflect on an event</button>';
+  '<div class="eyebrow">Event cognition</div><p id="ai-status" class="hint">Rules engine active. Configure optional AI in Settings.</p><button id="reflect" disabled>Reflect on an event</button>';
 $(".side-footer").before(aiPanel);
 $("#reflect").onclick = () => action("reflect");
 window.addEventListener("message", (e) => {
@@ -511,7 +527,7 @@ window.addEventListener("message", (e) => {
     : "RULES-BASED AGENTS · AI OFF";
   $("#ai-status").textContent = ai.enabled
     ? `${ai.status || "AI ready"} · ${num(ai.calls)} / ${num(ai.max_calls)} calls used. Reflection uses API budget.`
-    : "Citizens use programmed rules. Real AI reflections require your key below the app; Play never calls AI.";
+    : "Citizens use programmed rules. Real AI reflections require your key in Settings; Play never calls AI.";
   $("#experiment-ai").disabled = !ai.enabled;
   if (!ai.enabled) $("#experiment-ai").checked = false;
 });
@@ -591,6 +607,8 @@ function renderConsequences() {
     '</div><div class="ledger-group"><div class="eyebrow">Money · whole economy</div>' +
     row("Opening money", money(l.money_opening)) +
     row("External trade", "+" + money(l.trade_income), "positive") +
+    row("God-mode grant", "+" + money(l.god_money_added), "positive") +
+    row("God-mode removal", "−" + money(l.god_money_removed), "negative") +
     row("Upkeep / policies", "−" + money(l.maintenance_cost)) +
     row(
       "Repairs / emergency response",
@@ -674,6 +692,7 @@ window.addEventListener("message", (e) => {
   if (e.source !== window.parent || e.data?.type !== "streamlit:render") return;
   const args = e.data.args || {},
     acknowledged = pendingId !== null && args.ack === pendingId;
+  const completedAction = acknowledged ? pendingAction : null;
   if (args.state) {
     const replaced = acknowledged && ["reset", "load"].includes(pendingAction);
     oldPositions = replaced
@@ -731,10 +750,12 @@ window.addEventListener("message", (e) => {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     toast("World saved. Its story is yours to keep.");
   }
+  renderFeatureState(args, completedAction);
   updateControls();
   schedule();
   resize();
   height();
+  if (completedAction === "configure_ai") action("settings_ack");
 });
 // Every outgoing action has an explicit acknowledgement. Unrelated rerenders do not unlock controls.
 action = function (actionName, data = {}) {
@@ -742,7 +763,16 @@ action = function (actionName, data = {}) {
   pendingId = Date.now() + "-" + ++sequence;
   pendingAction = actionName;
   busy = true;
-  if (["reset", "load"].includes(actionName)) {
+  if (
+    [
+      "reset",
+      "load",
+      "god_interpret",
+      "god_apply",
+      "configure_ai",
+      "forget_ai",
+    ].includes(actionName)
+  ) {
     playing = false;
     clearTimeout(timer);
   }
@@ -759,6 +789,7 @@ new ResizeObserver(() => {
   height();
 }).observe(scene);
 window.addEventListener("resize", height);
+initializeFeatures();
 renderMetrics();
 renderInspector();
 renderPeople();
