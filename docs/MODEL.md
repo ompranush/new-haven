@@ -8,11 +8,19 @@ The engine owns one `random.Random(seed)` instance. The same seed, engine versio
 
 ## Money, food and businesses
 
-Coins are arbitrary simulation units, displayed with £ for convenience. Eight businesses have cash, workers, capacity and daily profit. Nonfarm production earns outside export revenue before wages are paid. Farmers produce food which earns revenue when residents buy meals. Wages move business cash to citizens and income tax to the treasury. Unpaid wages cause discontent and events. Public funds can pay for meals when citizens cannot afford them.
+Coins are arbitrary simulation units, displayed with £ for convenience. Eight businesses have cash, workers, capacity and daily profit. Nonfarm production earns outside export revenue, bounded by finite seasonal orders, workplace condition and flooded roads. Local purchases circulate existing money. Farmers produce food which earns revenue when residents buy meals. Wages move business cash to citizens and income tax to the treasury. Unpaid wages cause discontent and events. Public funds can pay for meals when citizens cannot afford them.
 
-Adults eat one food unit daily; children eat 0.6. Meals are allocated in seeded shuffled order to avoid systematically favouring lower citizen IDs. Food is capped by storage capacity. Weather and winter affect production; storms can damage food and personal wealth. Hunger harms health and happiness; exhausted or unwell residents rest and recover. This is intentionally a simplified open economy, not a closed-money or market-clearing model.
+Adults eat one food unit daily; children eat 0.6. Meals are allocated in seeded shuffled order to avoid systematically favouring lower citizen IDs. Food is constrained by storage capacity and spoilage. Weather and winter affect production; floods destroy food, damage buildings and charge emergency response. Hunger harms health and happiness; exhausted or unwell residents rest and recover. This is intentionally a simplified open economy, not a closed-money or market-clearing model.
 
-Education affects wage skills. Farm automation improves yield. Income tax toggles between two flat rates; it is not a progressive tax model. Price caps persist until toggled off. Festivals cost treasury and raise happiness. Relief is explicitly externally funded, and is a sandbox intervention rather than an internally financed policy.
+Education affects wage skills. Farm automation improves yield with square-root diminishing returns. Investments cost more per level, have a 30-day cooldown and five-level cap. Income tax toggles between two flat rates; it is not a progressive tax model. Price caps persist until toggled off. Festivals cost treasury, have a 30-day cooldown and give less benefit to already-happy citizens. Relief requires a shortage or active disaster, imports two days of food, charges transport and has a 30-day cooldown. Food remains external aid, not domestic production; no money is granted.
+
+## Damage, recovery and accounting
+
+Severe floods destroy 28% of stored food, charge response up to 1.2 coins per living citizen, and damage buildings (farm 36 condition points, eastern buildings 24, others 12). Harvests and trade suffer for 14 days with severity decaying daily. Lesser storms reduce that day's output without structural damage. Active floods cannot stack; structural damage remains after water recedes.
+
+Repairs require eligible builders. Each restored condition point consumes two treasury coins, 0.5 wood and 0.3 stone. Foresters and miners replenish materials. Scarcity can cause citizens to give up paid work and forage. These responses are labelled RULES; they are not LLM outputs. Decision logging is capped and has cooldowns to avoid repetitive spam.
+
+The food ledger reconciles opening + production + imports − consumption − losses = closing. The money ledger covers the **entire economy**, not only council funds: treasury + citizens + business balances. Trade adds money; upkeep, interventions and repairs remove it. Taxes, wages, gifts and purchases transfer existing funds. Deceased citizens retain estates; inheritance is not modelled. Multi-year treasury accumulation remains possible—this is not a calibrated equilibrium.
 
 ## Citizens and life events
 
@@ -22,12 +30,12 @@ Births and age-related deaths are probabilistic. Short runs may have no births o
 
 ## Experiments and cognition
 
-Intervention experiments start two worlds from each seed and apply one action to treatment on day 10 (or the last day for shorter horizons). The baseline remains untouched. Different actions may cause random paths to diverge. Mean paired differences and their standard deviation describe only these runs; they are not significance tests.
+Intervention experiments start two worlds from each seed and attempt one action on day 10 (or the last day for shorter horizons). Unavailable actions (for example, a flood already active or insufficient funds) are reported per seed instead of forced. Those runs remain in the aggregate. Emergency relief is excluded from experiments. A day-17 checkpoint exposes first-week differences. The baseline remains untouched. Different actions may cause random paths to diverge. Mean paired differences and their standard deviation describe only these runs; they are not significance tests.
 
 AI comparisons use the same starting seeds with no council intervention. Treatment may reflect on eligible events, within an equal per-seed call allowance. The selected council scenario is ignored in this mode. Some seeds may produce fewer eligible events. Actual AI calls are listed per run. External outputs are variable; recorded decisions explain resulting differences but do not establish causation about human societies.
 
 ## Storage and scale
 
-Each browser session has an independent world. Save files are the persistence mechanism; there is no account database or shared multiplayer world. The interface accepts save files up to 8 MB. The engine retains at most 30 memories per citizen, 200 town events, 2,000 metric records, 20 pending reflections and 100 AI decisions. It caps lifetime citizen records at 2,000.
+Each browser session has an independent world. Save files are the persistence mechanism; there is no account database or shared multiplayer world. The interface accepts save files up to 8 MB. The engine retains at most 30 memories per citizen, 200 town events, 2,000 metric records, 20 pending reflections and 100 combined rules/AI decisions. It caps lifetime citizen records at 2,000.
 
 Browser controls start 20–250 citizens. Headless construction permits 2–1,000. Automated checks include multiple seeds over years of simulated time, but do not establish performance or scientific validity at 10,000 citizens and 1,000 years.

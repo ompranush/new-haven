@@ -6,13 +6,13 @@ from src.civilisation.sim import Simulation
 from src.civilisation.cognition import Budget, reflect
 from src.civilisation.experiments import compare
 
-VERSION = "1.0"
+VERSION = "2.0"
 st.set_page_config(page_title="New Haven · A living world", page_icon="🌳", layout="wide", initial_sidebar_state="collapsed")
 st.markdown("""<style>
 .block-container{max-width:none;padding:0.6rem 0.7rem 2rem;}
 [data-testid="stHeader"]{height:0;background:transparent;}
 [data-testid="stMainBlockContainer"]{padding-top:0.4rem;}
-[data-testid="stAppViewContainer"]{background:#f4f6ef;}
+[data-testid="stAppViewContainer"]{background:#101a25;}
 [data-testid="stElementContainer"] iframe{border:0;}
 </style>""", unsafe_allow_html=True)
 if st.session_state.get("app_version") != VERSION:

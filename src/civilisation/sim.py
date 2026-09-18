@@ -26,10 +26,16 @@ class Simulation:
         self.policies = {"tax_rate": 0.08, "education": 0, "automation": 0, "price_cap": False}
         self.pending_decisions, self.decision_log = [], []
         self.event_counter = 0
+        self.active_effects = []
+        self.resources = {"wood": population*1.5, "stone": population*1.0}
+        self.cooldowns = {}
+        self.ledger = {}
         self.businesses = [{"id": i, "name": name, "kind": kind, "job": job, "x": x, "y": y, "workers": [], "cash": population*8., "profit": 0., "capacity": max(1, math.ceil(population*(0.27 if i == 0 else 0.115)))} for i, (name, kind, job, x, y) in enumerate(SITES)]
         self.buildings = [{k: b[k] for k in ("id", "name", "kind", "x", "y")} for b in self.businesses]
         self.buildings += [{"id": 8, "name": "Council Hall", "kind": "council", "x": 12, "y": 5}]
         self.buildings += [{"id": 9+i, "name": f"House {i+1}", "kind": "home", "x": x, "y": y} for i, (x,y) in enumerate([(7,8),(7,11),(9,14),(13,16),(16,10),(17,7),(10,17),(15,17)])]
+        for building in self.buildings:
+            building.update(condition=100., level=1, construction=False)
         self.terrain = [{"x": x, "y": y, "kind": "road" if y == 9 or x == 12 else "water" if x == 19 else "farm" if 2 <= x <= 7 and 12 <= y <= 17 else "forest" if x < 6 and y < 7 else "grass"} for y in range(20) for x in range(24)]
         people = []
         for i in range(population):
@@ -38,6 +44,7 @@ class Simulation:
             c.remember("Arrived in New Haven, ready to begin again.")
             people.append(c)
         self.world = World(0, population*4., people, treasury=population*6.)
+        self.ledger = {"food_opening":self.world.food,"food_produced":0.,"food_consumed":0.,"food_lost":0.,"food_imported":0.,"food_closing":self.world.food,"money_opening":self._money(),"trade_income":0.,"maintenance_cost":0.,"repair_cost":0.,"relief_cost":0.,"local_spending":0.,"money_closing":self._money()}
         for i,c in enumerate(people):
             if i < math.ceil(population*0.25):
                 self._hire(c,self.businesses[0])
@@ -80,14 +87,22 @@ class Simulation:
 
     def _day(self):
         w = self.world
+        self.ledger = {"food_opening":w.food,"food_produced":0.,"food_consumed":0.,"food_lost":0.,"food_imported":0.,"money_opening":self._money(),"trade_income":0.,"maintenance_cost":0.,"repair_cost":0.,"relief_cost":0.,"local_spending":0.}
         w.day += 1
         w.weather = self.rng.choices(["Clear","Rain","Wind","Storm"],[60,25,13,2])[0]
-        if w.weather == "Storm":
+        # Most bad weather hurts today's harvest; only severe storms breach the river.
+        if w.weather == "Storm" and self.rng.random()<0.5:
             self._storm()
         people = self.living
+        flood = max((e["severity"] for e in self.active_effects if e["kind"] == "flood"),default=0.)
+        self._repair_buildings()
         for b in self.businesses:
             b["profit"] = 0.
             b["workers"] = [i for i in b["workers"] if self.world.citizens[i].alive]
+            # Export orders are finite, seasonal and disrupted by flooded roads.
+            demand = (0.92+0.14*math.sin(w.day/19+b["id"]))*(1-flood*0.6)
+            b["demand"] = round(clamp(demand,0.15,1.2),3)
+            b["orders_remaining"] = len(people)*2.1/7*b["demand"]
         for c in people:
             if c.age >= 18 and c.job is None and self.rng.random() < 0.12:
                 options = [b for b in self.businesses if len(b["workers"]) < b["capacity"] and b["cash"] > 5]
@@ -106,13 +121,29 @@ class Simulation:
                 c.activity = "resting at home"
                 c.energy = clamp(c.energy+48)
                 c.health = clamp(c.health+4)
+            elif w.food<len(people) and c.job!="Farmer" and c.personality["agreeableness"]>0.65:
+                c.activity = "foraging instead of paid work during the shortage"
+                target = (4,4)
+                c.energy = clamp(c.energy-8)
+                w.food += 1.2
+                self.ledger["food_produced"] += 1.2
+                if w.day%7==c.id%7:
+                    c.remember("Gave up a day's wages to gather food for hungry neighbours.",w.day)
+                    self._rule_decision(c,"forage","Food reserves fell below one day; helping neighbours outweighed today's wages.","Gathered 1.2 meals instead of collecting wages.")
             elif c.job:
                 b = next(b for b in self.businesses if b["job"] == c.job)
+                condition = self.buildings[b["id"]]["condition"]/100
                 wage = JOBS[c.job]*(1+0.02*self.policies["education"])
                 if b["kind"] != "farm":
-                    revenue = wage*(1.3+c.personality["conscientiousness"]*0.2)
+                    revenue = min(b["orders_remaining"],wage*(1.12+c.personality["conscientiousness"]*0.12)*condition)
+                    b["orders_remaining"] -= revenue
                     b["cash"] += revenue
                     b["profit"] += revenue
+                    self.ledger["trade_income"] += revenue
+                    upkeep = min(b["cash"],wage*0.13)
+                    b["cash"] -= upkeep
+                    b["profit"] -= upkeep
+                    self.ledger["maintenance_cost"] += upkeep
                 paid = min(wage,b["cash"])
                 b["cash"] -= paid
                 b["profit"] -= paid
@@ -127,13 +158,39 @@ class Simulation:
                 target = (b["x"],b["y"])
                 if c.job == "Farmer":
                     factor = {"Clear":1,"Rain":1.12,"Wind":0.9,"Storm":0.5}[w.weather]
-                    w.food += 6.2*factor*(0.82 if self.season == "Winter" else 1)*(1+self.policies["automation"]*0.12)
+                    produced = 5.9*factor*(0.9 if self.season == "Winter" else 1)*(1+0.1*math.sqrt(self.policies["automation"]))*max(0.25,condition)*(1-flood*0.55)
+                    w.food += produced
+                    self.ledger["food_produced"] += produced
+                    if flood:
+                        c.activity = "salvaging the flooded harvest"
+                elif c.job in ("Forester","Miner"):
+                    resource = "wood" if c.job == "Forester" else "stone"
+                    self.resources[resource] = min(len(people)*5,self.resources[resource]+0.5*condition)
+                elif c.job == "Builder" and any(x["construction"] for x in self.buildings):
+                    damaged = min(self.buildings,key=lambda x:x["condition"])
+                    target = (damaged["x"],damaged["y"])
+                    c.activity = f"rebuilding {damaged['name']}"
+                    if w.day%7==c.id%7:
+                        c.remember(f"Worked on the recovery of {damaged['name']} after the flood.",w.day)
+                        self._rule_decision(c,"repair",f"{damaged['name']} is damaged and the town funded recovery.","Joined the construction crew; repairs consume council money, timber and stone.")
             else:
                 c.activity = "looking for work in the square"
                 c.energy = clamp(c.energy+12)
                 target = (12,9)
+                if w.food < len(people)*2:
+                    c.activity = "foraging to feed the town"
+                    target = (4,4)
+                    w.food += 0.7
+                    self.ledger["food_produced"] += 0.7
+                    if w.day%7 == c.id%7:
+                        c.remember("Chose to forage because town food reserves were low.",w.day)
+                        self._rule_decision(c,"forage","No paid work and food reserves below two days.","Gathered 0.7 meals for the town.")
             self._move(c,target)
-        w.food = min(w.food,max(20,len(people)*10))
+        # Spoilage and finite granaries prevent limitless free stockpiles.
+        lost = max(0,w.food-max(20,len(people)*10))+min(w.food,max(0,w.food-len(people)*3))*0.007
+        lost = min(w.food,lost)
+        w.food -= lost
+        self.ledger["food_lost"] += lost
         w.food_price = round(clamp(1.25-w.food/max(1,len(people))*0.07,0.55,2.5),2)
         if self.policies["price_cap"]:
             w.food_price = min(w.food_price,0.8)
@@ -153,10 +210,19 @@ class Simulation:
                 else:
                     w.treasury -= cost
                 w.food -= quantity
+                self.ledger["food_consumed"] += quantity
                 self.businesses[0]["cash"] += cost
                 self.businesses[0]["profit"] += cost
                 c.hunger = clamp(c.hunger-30)
             c.health = clamp(c.health+(0.25 if c.hunger < 45 else -1.5-c.hunger/100))
+            # Local purchases circulate existing citizen money instead of minting sales.
+            if c.hunger<35 and c.wealth>30:
+                spending=min(0.4,c.wealth-30)
+                shop=self.businesses[1+(c.id+w.day)%7]
+                c.wealth-=spending
+                shop["cash"]+=spending
+                shop["profit"]+=spending
+                self.ledger["local_spending"]+=spending
             c.happiness = clamp(c.happiness+(65-c.happiness)*0.015+(0.2 if c.hunger < 35 else -1.8)+self.rng.uniform(-0.4,0.4))
             c.goal_progress = self._goal_progress(c)
         self._socialise()
@@ -167,7 +233,45 @@ class Simulation:
         if w.food < len(self.living) and w.day%7 == 0 and self.living:
             self._event("shortage","Food is running low","Residents are debating how to protect the next harvest.",self.rng.choice(self.living))
         self.pending_decisions = [d for d in self.pending_decisions if w.day-d["day"] <= 30 and self.world.citizens[d["citizen_id"]].alive]
+        for effect in self.active_effects:
+            effect["days_remaining"] -= 1
+            effect["severity"] *= 0.95
+            if effect["days_remaining"] == 0:
+                self._event("recovery","The floodwaters recede","Roads are open again; damaged buildings still need funded repairs.")
+        self.active_effects = [e for e in self.active_effects if e["days_remaining"]>0]
+        self.ledger.update(food_closing=w.food,money_closing=self._money())
         self._record()
+
+    def _money(self):
+        return self.world.treasury+sum(c.wealth for c in self.world.citizens)+sum(b["cash"] for b in self.businesses)
+
+    def _rule_decision(self,c,action,reason,effect):
+        recent=[d for d in self.decision_log if d.get("source")=="rules"]
+        if sum(d["day"]==self.world.day for d in recent)>=3 or any(d["citizen_id"]==c.id and d["action"]==action and self.world.day-d["day"]<14 for d in recent):
+            return
+        self.event_counter += 1
+        self.decision_log.append({"id":self.event_counter,"citizen_id":c.id,"day":self.world.day,"event":"Adaptive response to local conditions","action":action,"reason":reason,"source":"rules","effect":effect})
+        del self.decision_log[:-100]
+
+    def _repair_buildings(self):
+        builders = sum(c.job == "Builder" and c.energy>=28 for c in self.living)
+        budget = builders*0.8
+        for b in sorted(self.buildings,key=lambda b:b["condition"]):
+            b["construction"] = False
+            if b["condition"]>=100 or budget<=0:
+                continue
+            points = min(100-b["condition"],budget,self.world.treasury/2,self.resources["wood"]/0.5,self.resources["stone"]/0.3)
+            if points<=0:
+                continue
+            self.world.treasury -= points*2
+            self.resources["wood"] -= points*0.5
+            self.resources["stone"] -= points*0.3
+            self.ledger["repair_cost"] += points*2
+            b["condition"] += points
+            b["construction"] = True
+            budget -= points
+            if b["condition"]>=100:
+                self._event("recovery","Rebuilding complete",f"{b['name']} reopened at full capacity after publicly funded repairs.")
 
     def _goal_progress(self,c):
         values = {"save for a home":c.wealth/5,"make a close friend":max(c.relationships.values(),default=0),"master a craft":self.world.day/3 if c.job else 0,"start a family":100 if c.partner_id is not None else max(c.relationships.values(),default=0)/2,"help the town":self.world.day/2+self.policies["education"]*5}
@@ -242,39 +346,72 @@ class Simulation:
             partner.remember(f"Welcomed {baby.name} into the family.",self.world.day)
 
     def _storm(self):
-        self.world.food *= 0.82
+        if any(e["kind"]=="flood" for e in self.active_effects):
+            return
+        loss = self.world.food*0.28
+        self.world.food -= loss
+        self.ledger["food_lost"] = self.ledger.get("food_lost",0)+loss
+        self.active_effects.append({"kind":"flood","label":"Flooded roads and fields","days_remaining":14,"severity":0.85})
+        for b in self.buildings:
+            damage = 36 if b["kind"]=="farm" else 24 if b["x"]>=14 else 12
+            b["condition"] = max(15,b["condition"]-damage)
+        expense = min(self.world.treasury,len(self.living)*1.2)
+        self.world.treasury -= expense
+        self.ledger["repair_cost"] = self.ledger.get("repair_cost",0)+expense
         self.world.weather = "Storm"
         if self.living:
             c = self.rng.choice(self.living)
-            loss = c.wealth*0.1
-            c.wealth -= loss
             c.happiness = clamp(c.happiness-8)
-            self._event("disaster","The river breaks its banks",f"{c.name} lost {loss:.0f} coins in a flood; food stores were damaged.",c)
+            self._event("disaster","The river breaks its banks",f"Flooding destroyed {loss:.0f} meals. Emergency response cost {expense:.0f} coins; fields, buildings and trade roads face two weeks of disruption.",c)
+
+    def intervention_options(self):
+        costs = {"festival":40,"storm":0,"aid":max(10,len(self.living)*0.3),"education":80*(1+self.policies["education"]),"tax":0,"automation":120*(1+self.policies["automation"]),"market":0}
+        labels = {"festival":"Lantern festival","storm":"Introduce flood","aid":"Emergency food convoy","education":"Fund education","tax":"Change income tax","automation":"Upgrade farm tools","market":"Toggle food price cap"}
+        result=[]
+        for action,cost in costs.items():
+            remaining=max(0,self.cooldowns.get(action,0)-self.world.day)
+            reason = f"Available in {remaining} days" if remaining else ""
+            if action=="storm" and self.active_effects:
+                reason="A flood is already active"
+            elif action=="aid" and self.world.food>=len(self.living)*2 and not self.active_effects:
+                reason="Relief requires a food shortage or active disaster"
+            elif action in ("education","automation") and self.policies[action]>=5:
+                reason="Maximum investment level reached"
+            if self.world.treasury<cost:
+                reason=f"Requires {cost:g} council coins"
+            result.append({"id":action,"label":labels[action],"cost":cost,"cooldown_remaining":remaining,"available":not reason,"description":reason or "Ready"})
+        return result
 
     def intervene(self,action):
-        costs = {"festival":40,"storm":0,"aid":0,"education":80,"tax":0,"automation":120,"market":0}
-        if action not in costs:
+        option = next((o for o in self.intervention_options() if o["id"]==action),None)
+        if option is None:
             raise ValueError("Unknown intervention")
-        if self.world.treasury<costs[action]:
-            raise ValueError(f"The council needs {costs[action]} coins for this action")
-        self.world.treasury -= costs[action]
-        messages = {"festival":"The council funded a lantern festival.","storm":"A severe storm was introduced into the world.","aid":"An external relief convoy delivered food and 100 coins.","education":"The council invested in skills and education.","tax":"The council changed the income tax rate.","automation":"The council upgraded farm tools to improve harvests.","market":"The council toggled the food price cap."}
+        if not option["available"]:
+            raise ValueError(option["description"])
+        self.world.treasury -= option["cost"]
+        cooldown = {"festival":30,"aid":30,"education":30,"automation":30,"storm":14,"tax":7,"market":7}[action]
+        self.cooldowns[action] = self.world.day+cooldown
+        self.ledger["relief_cost" if action=="aid" else "maintenance_cost"] = self.ledger.get("relief_cost" if action=="aid" else "maintenance_cost",0)+option["cost"]
+        messages = {"festival":"The council funded a lantern festival; another can be held in 30 days.","storm":"A severe storm was introduced into the world.","aid":"A relief convoy delivered two days of food, with council-paid transport. No money was granted; another convoy needs 30 days.","education":"The council invested in skills and education.","tax":"The council changed the income tax rate.","automation":"The council upgraded farm tools to improve harvests.","market":"The council toggled the food price cap."}
         if action=="festival":
             for c in self.living:
-                c.happiness = clamp(c.happiness+8)
+                c.happiness = clamp(c.happiness+max(1,(100-c.happiness)*0.12))
                 c.remember("Celebrated the lantern festival.",self.world.day)
         elif action=="storm":
             self._storm()
         elif action=="aid":
-            self.world.food += len(self.living)*3
-            self.world.treasury += 100
+            imported = len(self.living)*2
+            self.world.food += imported
+            self.ledger["food_imported"] = self.ledger.get("food_imported",0)+imported
         elif action in ("education","automation"):
             self.policies[action] = min(10,self.policies[action]+1)
+            self.buildings[3 if action=="education" else 0]["level"] = 1+self.policies[action]
         elif action=="tax":
             self.policies["tax_rate"] = 0.15 if self.policies["tax_rate"]==0.08 else 0.08
         else:
             self.policies["price_cap"] = not self.policies["price_cap"]
         self._event("council","Council decision",messages[action])
+        self.ledger.update(food_closing=self.world.food,money_closing=self._money())
         self._record(replace=True)
 
     def apply_decision(self,decision_id,action,reason):
@@ -287,12 +424,17 @@ class Simulation:
         if not c.alive:
             raise ValueError("Citizen is no longer alive")
         if action=="seek_work":
+            effect="No job change: already employed or no suitable vacancy."
             for b in self.businesses:
                 if self._hire(c,b):
+                    effect=f"Hired as a {c.job} at {b['name']}."
                     break
         elif action=="rest":
+            before=c.energy
             c.energy = clamp(c.energy+15)
+            effect=f"Recovered {c.energy-before:g} energy points."
         elif action=="help_neighbor":
+            effect="No living neighbour was available to help."
             neighbors = [p for p in self.living if p.id!=c.id]
             if neighbors:
                 other = min(neighbors,key=lambda p:p.wealth)
@@ -300,11 +442,14 @@ class Simulation:
                 c.wealth -= gift
                 other.wealth += gift
                 other.relationships[str(c.id)] = clamp(other.relationships.get(str(c.id),0)+5,-100,100)
+                effect=f"Transferred {gift:g} existing coins to {other.name} and improved their regard."
         else:
+            before=c.happiness
             c.happiness = clamp(c.happiness+3)
+            effect=f"Gained {c.happiness-before:g} happiness points; no council policy was enacted."
         c.remember(f"Chose to {action.replace('_',' ')}: {reason}",self.world.day)
         self.pending_decisions.remove(item)
-        self.decision_log.append({**item,"action":action,"reason":reason})
+        self.decision_log.append({**item,"day":self.world.day,"trigger_day":item["day"],"action":action,"reason":reason,"source":"ai","effect":effect})
         del self.decision_log[:-100]
         self._record(replace=True)
 
@@ -321,10 +466,10 @@ class Simulation:
         del self.world.history[:-2000]
 
     def snapshot(self):
-        return json.loads(json.dumps({**self.summary(),"seed":self.seed,"width":24,"height":20,"citizens":[asdict(c) for c in self.world.citizens],"businesses":self.businesses,"buildings":self.buildings,"terrain":self.terrain,"events":self.world.events,"history":self.world.history,"policies":self.policies,"pending_decisions":self.pending_decisions,"cognition_events":self.pending_decisions,"decision_log":self.decision_log}))
+        return json.loads(json.dumps({**self.summary(),"seed":self.seed,"width":24,"height":20,"citizens":[asdict(c) for c in self.world.citizens],"businesses":self.businesses,"buildings":self.buildings,"terrain":self.terrain,"events":self.world.events,"history":self.world.history,"policies":self.policies,"pending_decisions":self.pending_decisions,"cognition_events":self.pending_decisions,"decision_log":self.decision_log,"active_effects":self.active_effects,"resources":self.resources,"ledger":self.ledger,"cooldowns":self.cooldowns,"interventions":self.intervention_options()}))
 
     def save(self):
-        return json.dumps({"version":self.VERSION,"seed":self.seed,"rng":self.rng.getstate(),"world":asdict(self.world),"businesses":self.businesses,"policies":self.policies,"pending_decisions":self.pending_decisions,"decision_log":self.decision_log,"event_counter":self.event_counter},allow_nan=False)
+        return json.dumps({"version":self.VERSION,"seed":self.seed,"rng":self.rng.getstate(),"world":asdict(self.world),"businesses":self.businesses,"buildings":self.buildings,"active_effects":self.active_effects,"resources":self.resources,"ledger":self.ledger,"cooldowns":self.cooldowns,"policies":self.policies,"pending_decisions":self.pending_decisions,"decision_log":self.decision_log,"event_counter":self.event_counter},allow_nan=False)
 
     @classmethod
     def load(cls,text):
@@ -394,8 +539,12 @@ class Simulation:
                 if type(d["citizen_id"]) is not int or not 0<=d["citizen_id"]<len(citizens) or not citizens[d["citizen_id"]].alive or type(d["id"]) is not int or not isinstance(d["event"],str) or type(d["day"]) is not int or not 0<=d["day"]<=w["day"]:
                     raise ValueError("Invalid decision")
             for d in data["decision_log"]:
-                if type(d["id"]) is not int or type(d["citizen_id"]) is not int or not 0<=d["citizen_id"]<len(citizens) or type(d["day"]) is not int or not 0<=d["day"]<=w["day"] or d["action"] not in {"seek_work","help_neighbor","rest","organize"} or not isinstance(d["reason"],str) or len(d["reason"])>500:
+                source=d.get("source","ai")
+                allowed={"forage","repair"} if source=="rules" else {"seek_work","help_neighbor","rest","organize"}
+                if source not in {"rules","ai"} or type(d["id"]) is not int or type(d["citizen_id"]) is not int or not 0<=d["citizen_id"]<len(citizens) or type(d["day"]) is not int or not 0<=d["day"]<=w["day"] or d["action"] not in allowed or not isinstance(d["reason"],str) or len(d["reason"])>500 or not isinstance(d.get("effect",""),str) or len(d.get("effect",""))>500:
                     raise ValueError("Invalid decision log")
+                if "trigger_day" in d and (type(d["trigger_day"]) is not int or not 0<=d["trigger_day"]<=d["day"]):
+                    raise ValueError("Invalid decision trigger day")
             if len({d["id"] for d in data["pending_decisions"]}) != len(data["pending_decisions"]):
                 raise ValueError("Duplicate decision")
             for event in w["events"]:
@@ -409,6 +558,26 @@ class Simulation:
             sim.rng.setstate(tuples(data["rng"]))
             sim.world = World(**{**w,"citizens":citizens})
             sim.businesses,sim.policies = businesses,p
+            # Version-one saves predate physical damage; migrate them as intact worlds.
+            buildings = data.get("buildings",sim.buildings)
+            if len(buildings)!=len(sim.buildings):
+                raise ValueError("Invalid buildings")
+            for b,expected in zip(buildings,sim.buildings):
+                if any(b[k]!=expected[k] for k in ("id","name","kind","x","y")) or not isinstance(b["condition"],(int,float)) or not 0<=b["condition"]<=100 or type(b["level"]) is not int or not 1<=b["level"]<=6 or type(b["construction"]) is not bool:
+                    raise ValueError("Invalid building condition")
+            resources=data.get("resources",{"wood":len(citizens)*1.5,"stone":len(citizens)})
+            if set(resources)!={"wood","stone"} or any(not isinstance(v,(int,float)) or not 0<=v<1e12 for v in resources.values()):
+                raise ValueError("Invalid materials")
+            effects=data.get("active_effects",[])
+            if len(effects)>1 or any(e["kind"]!="flood" or not isinstance(e["label"],str) or type(e["days_remaining"]) is not int or not 1<=e["days_remaining"]<=14 or not isinstance(e["severity"],(int,float)) or not 0<=e["severity"]<=1 for e in effects):
+                raise ValueError("Invalid active effects")
+            cooldowns=data.get("cooldowns",{})
+            if any(k not in {"festival","storm","aid","education","tax","automation","market"} or type(v) is not int or not 0<=v<=w["day"]+30 for k,v in cooldowns.items()):
+                raise ValueError("Invalid intervention cooldown")
+            ledger=data.get("ledger",{})
+            if not isinstance(ledger,dict) or any(not isinstance(v,(int,float)) or not 0<=v<1e15 for v in ledger.values()):
+                raise ValueError("Invalid ledger")
+            sim.buildings,sim.resources,sim.active_effects,sim.cooldowns,sim.ledger=buildings,resources,effects,cooldowns,ledger
             sim.pending_decisions,sim.decision_log = data["pending_decisions"],data["decision_log"]
             sim.event_counter = data["event_counter"]
             if type(sim.event_counter) is not int or sim.event_counter<0:

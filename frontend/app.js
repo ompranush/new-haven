@@ -76,6 +76,7 @@ function updateControls() {
     "#save",
     "#run-experiment",
   ].forEach((id) => ($(id).disabled = busy));
+  renderIntervention();
 }
 function setTab(tab) {
   activeTab = tab;
@@ -84,10 +85,11 @@ function setTab(tab) {
     el.classList.toggle("active", el.dataset.tab === tab),
   );
   $("#sidebar").classList.remove("open");
+  $("#menu").setAttribute("aria-expanded", "false");
   const names = {
     world: [
-      "A little world. A life of its own.",
-      "Every citizen has a story. See what happens next.",
+      "The New Haven valley",
+      "Follow a life. Change a policy. Watch the consequences.",
     ],
     citizens: [
       "The people of New Haven",
@@ -161,7 +163,7 @@ $("#run-experiment").onclick = () => {
   schedule();
   action("experiment", {
     seeds: clamp(num($("#experiment-seeds").value, 3), 1, 10),
-    horizon: clamp(num($("#experiment-horizon").value, 90), 30, 365),
+    horizon: clamp(num($("#experiment-horizon").value, 30), 14, 365),
     scenario: $("#experiment-scenario").value,
   });
   $("#experiment-results").innerHTML =
@@ -182,6 +184,7 @@ function need(label, value) {
   return `<div class="need"><div><span>${esc(label)}</span><strong>${Math.round(value)}%</strong></div><div class="bar"><i style="width:${value}%;background:${value < 35 ? "#c87850" : "#699765"}"></i></div></div>`;
 }
 function renderInspector() {
+  if (typeof worldView !== "undefined") worldView.setSelected(selected);
   const c = selected?.type === "citizen" ? citizen(selected.id) : null,
     b =
       selected?.type === "building"
@@ -192,7 +195,7 @@ function renderInspector() {
       (x) => x.id === b.id || (x.x === b.x && x.y === b.y),
     );
     $("#inspector").innerHTML =
-      `<div class="eyebrow">Around the settlement</div><div class="avatar" style="margin-top:15px">${b.kind === "farm" ? "🌾" : b.kind === "mine" ? "⛰" : "⌂"}</div><h2>${esc(b.name || b.kind)}</h2><p>${esc(b.kind)}</p><hr class="separator"><p class="muted">A part of the town’s shared life. Citizens travel between homes, work, and public spaces.</p>${biz ? `<div class="goal">${(biz.workers || []).length} workers · Cash ${money(biz.cash)}<br>Daily profit ${money(biz.profit)}</div>` : ""}<button id="clear-selection">Back to town overview</button>`;
+      `<div class="eyebrow">Around the settlement</div><div class="avatar" style="margin-top:15px">${b.kind === "farm" ? "🌾" : b.kind === "mine" ? "⛰" : "⌂"}</div><h2>${esc(b.name || b.kind)}</h2><p>${esc(b.kind)}</p><hr class="separator"><p class="muted">Condition affects output. Builders repair damage over time using treasury funds, wood and stone.</p>${need("Building condition", b.condition ?? 100)}<p class="muted">Level ${fmt(b.level || 1)} · ${b.construction ? "Repairs in progress" : num(b.condition, 100) < 99 ? "Awaiting repair resources / workers" : "Operational"}</p>${biz ? `<div class="goal">${(biz.workers || []).length} workers · Cash ${money(biz.cash)}<br>Daily profit ${money(biz.profit)}</div>` : ""}<button id="clear-selection">Back to town overview</button>`;
     $("#clear-selection").onclick = () => {
       selected = null;
       renderInspector();
@@ -215,7 +218,7 @@ function renderInspector() {
       .slice(0, 4),
     memories = (c.memories || []).slice(-5).reverse();
   $("#inspector").innerHTML =
-    `<div style="display:flex;justify-content:space-between"><div class="eyebrow">Resident journal</div><button class="link" id="clear-selection" aria-label="Close resident inspector">✕</button></div><div class="avatar" style="margin-top:14px">${num(c.age) < 18 ? "🧒" : num(c.age) > 65 ? "🧓" : "🧑"}</div><h2>${esc(c.name)}</h2><p class="muted">${esc(c.job || "Seeking work")} · Age ${Math.floor(num(c.age))}</p><p style="font-size:12px;margin-top:10px">${esc(c.activity || "Taking in the town")}</p><div class="goal"><span class="eyebrow">Working towards</span><br>${esc(c.goal || "A good life in New Haven")}</div>${need("Happiness", c.happiness)}${need("Health", c.health)}${need("Energy", c.energy)}${need("Food security", 100 - num(c.hunger))}<p class="muted">Savings <strong>${money(c.wealth)}</strong></p><hr class="separator"><div class="eyebrow">Personality</div><p class="muted">${
+    `<div style="display:flex;justify-content:space-between"><div class="eyebrow">Resident journal</div><button class="link" id="clear-selection" aria-label="Close resident inspector">✕</button></div><div class="avatar" style="margin-top:14px">${num(c.age) < 18 ? "🧒" : num(c.age) > 65 ? "🧓" : "🧑"}</div><h2>${esc(c.name)}</h2><p class="muted">${esc(c.job || "Seeking work")} · Age ${Math.floor(num(c.age))}</p><p style="font-size:12px;margin-top:10px">${esc(c.activity || "Taking in the town")}</p><div class="goal"><span class="eyebrow">Working towards</span><br>${esc(c.goal || "A good life in New Haven")}<br><small>Progress ${fmt(c.goal_progress)}%</small></div>${need("Happiness", c.happiness)}${need("Health", c.health)}${need("Energy", c.energy)}${need("Food security", 100 - num(c.hunger))}<p class="muted">Savings <strong>${money(c.wealth)}</strong></p><hr class="separator"><div class="eyebrow">Personality</div><p class="muted">${
       Object.entries(c.personality || {})
         .map(
           ([k, v]) =>
@@ -236,9 +239,21 @@ function renderInspector() {
 function renderMetrics() {
   const cards = [
     ["Residents", fmt(S.population), "Lives in the settlement"],
-    ["Food stores", fmt(S.food), "Price £" + num(S.food_price).toFixed(2)],
+    [
+      "Food stores",
+      fmt(S.food),
+      (num(S.food) / Math.max(1, num(S.population))).toFixed(1) +
+        " days · £" +
+        num(S.food_price).toFixed(2) +
+        " / meal",
+    ],
     ["Shared treasury", money(S.treasury), "Resources for tomorrow"],
     ["Happiness", fmt(S.happiness) + "%", "The mood of the town"],
+    [
+      "Materials",
+      fmt(S.resources?.wood) + " / " + fmt(S.resources?.stone),
+      "Wood / stone available for recovery",
+    ],
     [
       "Employment",
       fmt(100 - num(S.unemployment)) + "%",
@@ -383,6 +398,52 @@ function renderExperiment(result) {
     $("#experiment-results").innerHTML =
       '<p class="hint">' + esc(result.note || "Experiment complete.") + "</p>";
   }
+  const skipped = (result.runs || []).filter(
+    (r) => result.mode !== "ai" && r.intervention_applied === false,
+  );
+  if (skipped.length)
+    $("#experiment-results").insertAdjacentHTML(
+      "afterbegin",
+      '<div class="crisis">' +
+        esc(
+          skipped
+            .map((r) => "Seed " + r.seed + ": " + r.intervention_note)
+            .join(" · "),
+        ) +
+        " · These runs remain in the aggregate.</div>",
+    );
+  const weeks = (result.runs || []).filter((r) => r.impact_week);
+  if (weeks.length && result.mode !== "ai") {
+    const mean = (key) =>
+      weeks.reduce((sum, r) => sum + num(r.impact_week[key]), 0) / weeks.length;
+    $("#experiment-results").insertAdjacentHTML(
+      "beforeend",
+      '<div class="goal"><strong>One week after the scheduled intervention</strong><br>Mean food difference: ' +
+        fmt(mean("food")) +
+        " meals · Treasury difference: " +
+        money(mean("treasury")) +
+        ". This checkpoint exposes short-term costs that final outcomes can hide.</div>",
+    );
+  }
+  if (result.runs?.length)
+    $("#experiment-results").insertAdjacentHTML(
+      "beforeend",
+      '<div class="goal"><strong>Execution record</strong><br>' +
+        result.runs
+          .map(
+            (r) =>
+              "Seed " +
+              esc(r.seed) +
+              " · " +
+              esc(
+                result.mode === "ai"
+                  ? num(r.ai_calls) + " actual AI calls"
+                  : r.intervention_note,
+              ),
+          )
+          .join("<br>") +
+        "</div>",
+    );
   height();
 }
 $("#load-file").onchange = async (event) => {
@@ -428,7 +489,7 @@ $("#run-experiment").onclick = () => {
   schedule();
   action("experiment", {
     seeds: clamp(num($("#experiment-seeds").value, 3), 1, 10),
-    horizon: clamp(num($("#experiment-horizon").value, 90), 30, 365),
+    horizon: clamp(num($("#experiment-horizon").value, 30), 14, 365),
     scenario: $("#experiment-scenario").value,
     mode: $("#experiment-ai").checked ? "ai" : "rules",
   });
@@ -444,395 +505,158 @@ $("#reflect").onclick = () => action("reflect");
 window.addEventListener("message", (e) => {
   if (e.source !== window.parent || e.data?.type !== "streamlit:render") return;
   const ai = e.data.args?.ai || {};
-  $("#reflect").disabled = !ai.enabled;
+  $("#reflect").disabled = !ai.enabled || busy;
+  $("#mode-badge").textContent = ai.enabled
+    ? "RULES + OPTIONAL AI · " + num(ai.calls) + " CALLS"
+    : "RULES-BASED AGENTS · AI OFF";
   $("#ai-status").textContent = ai.enabled
     ? `${ai.status || "AI ready"} · ${num(ai.calls)} / ${num(ai.max_calls)} calls used. Reflection uses API budget.`
-    : "Rules engine active. Enable optional AI using the setup panel below the app.";
+    : "Citizens use programmed rules. Real AI reflections require your key below the app; Play never calls AI.";
   $("#experiment-ai").disabled = !ai.enabled;
   if (!ai.enabled) $("#experiment-ai").checked = false;
 });
-// Canvas renderer: all scenery is generated locally from the actual world snapshot.
+// The state-driven voxel renderer owns canvas animation and interaction.
 const canvas = $("#world-canvas"),
-  ctx = canvas.getContext("2d"),
   scene = $("#scene");
-let width = 700,
-  heightPx = 490,
-  zoom = 1,
-  panX = 0,
-  panY = 0,
-  hits = [],
-  drag = null,
-  raf = 0;
-const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-function resize() {
-  width = scene.clientWidth || 700;
-  heightPx = scene.clientHeight || 490;
-  const dpr = Math.min(devicePixelRatio || 1, 2);
-  canvas.width = width * dpr;
-  canvas.height = heightPx * dpr;
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-}
-function worldSize() {
-  return {
-    w: num(S.width || S.world_width, 24),
-    h: num(S.height || S.world_height, 20),
-  };
-}
-function scale() {
-  const { w, h } = worldSize();
-  return Math.min(width / (w + h + 3), heightPx / (0.5 * (w + h) + 7)) * zoom;
-}
-function iso(x, y, z = 0) {
-  const { w, h } = worldSize(),
-    s = scale();
-  return [
-    width / 2 + (x - y - (w - h) / 2) * s + panX,
-    heightPx / 2 + ((x + y - (w + h) / 2) * 0.5 - z) * s + panY + 20,
-  ];
-}
-function poly(points, fill, stroke) {
-  ctx.beginPath();
-  points.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
-  ctx.closePath();
-  ctx.fillStyle = fill;
-  ctx.fill();
-  if (stroke) {
-    ctx.strokeStyle = stroke;
-    ctx.lineWidth = 0.5;
-    ctx.stroke();
-  }
-}
-function tile(x, y, color) {
-  poly([iso(x, y), iso(x + 1, y), iso(x + 1, y + 1), iso(x, y + 1)], color);
-}
-function block(x, y, w, d, h, colors) {
-  poly(
-    [iso(x, y, h), iso(x + w, y, h), iso(x + w, y + d, h), iso(x, y + d, h)],
-    colors[0],
-  );
-  poly(
-    [iso(x, y + d, h), iso(x + w, y + d, h), iso(x + w, y + d), iso(x, y + d)],
-    colors[1],
-  );
-  poly(
-    [iso(x + w, y, h), iso(x + w, y + d, h), iso(x + w, y + d), iso(x + w, y)],
-    colors[2],
-  );
-}
-function tree(x, y, seed) {
-  block(x + 0.43, y + 0.43, 0.12, 0.12, 0.55, [
-    "#87754d",
-    "#75603d",
-    "#665735",
-  ]);
-  const h = 0.8 + (seed % 3) * 0.13;
-  for (let i = 0; i < 3; i++) {
-    const z = 0.5 + i * 0.33,
-      r = 0.45 - i * 0.1;
-    poly(
-      [
-        iso(x + 0.5 - r, y + 0.5 + r, z),
-        iso(x + 0.5, y + 0.5, z + h * 0.7),
-        iso(x + 0.5 + r, y + 0.5 + r, z),
-      ],
-      "#56764c",
-    );
-    poly(
-      [
-        iso(x + 0.5 + r, y + 0.5 - r, z),
-        iso(x + 0.5, y + 0.5, z + h * 0.7),
-        iso(x + 0.5 + r, y + 0.5 + r, z),
-      ],
-      "#3f6344",
-    );
-  }
-}
-function building(b) {
-  const x = num(b.x),
-    y = num(b.y),
-    kind = String(b.kind || "home").toLowerCase(),
-    s = scale();
-  if (kind.includes("farm")) {
-    tile(x, y, "#b29c50");
-    for (let i = 0; i < 5; i++) {
-      const a = iso(x + 0.12 + i * 0.17, y + 0.12, 0.1),
-        d = iso(x + 0.12 + i * 0.17, y + 0.9, 0.1);
-      ctx.strokeStyle = "#e3c862";
-      ctx.lineWidth = Math.max(1, s * 0.08);
-      ctx.beginPath();
-      ctx.moveTo(...a);
-      ctx.lineTo(...d);
-      ctx.stroke();
-    }
-  } else if (kind.includes("mine")) {
-    block(x + 0.1, y + 0.1, 0.8, 0.8, 0.6, ["#929a91", "#667a73", "#7c8980"]);
-    block(x + 0.3, y + 0.75, 0.38, 0.1, 0.35, [
-      "#665c4d",
-      "#344844",
-      "#4d5b53",
-    ]);
-  } else {
-    const tall =
-        kind.includes("council") ||
-        kind.includes("hall") ||
-        kind.includes("school"),
-      h = tall ? 1.35 : 0.85,
-      roof = kind.includes("market")
-        ? "#ae8050"
-        : kind.includes("work")
-          ? "#688e92"
-          : kind.includes("school")
-            ? "#79815f"
-            : "#b77957";
-    block(x + 0.08, y + 0.08, 0.85, 0.85, h, ["#ece0bc", "#d4c6a1", "#eee3c4"]);
-    const a = iso(x + 0.01, y + 0.01, h),
-      b1 = iso(x + 1, y + 0.01, h),
-      c = iso(x + 1, y + 1, h),
-      d = iso(x + 0.01, y + 1, h),
-      r1 = iso(x + 0.5, y + 0.01, h + 0.47),
-      r2 = iso(x + 0.5, y + 1, h + 0.47);
-    poly([a, r1, r2, d], roof);
-    poly([r1, b1, c, r2], kind.includes("work") ? "#4c7277" : "#925a44");
-    block(x + 0.36, y + 0.94, 0.22, 0.025, 0.4, [
-      "#776548",
-      "#766546",
-      "#675b44",
-    ]);
-    const win = iso(x + 0.94, y + 0.35, 0.54);
-    ctx.fillStyle = "#4f807e";
-    ctx.fillRect(win[0] - s * 0.07, win[1] - s * 0.12, s * 0.13, s * 0.2);
-    if (tall) {
-      block(x + 0.4, y + 0.3, 0.25, 0.25, h + 0.5, [
-        "#dfcead",
-        "#b9a483",
-        "#cec09c",
-      ]);
-    }
-  }
-  const p = iso(x + 0.5, y + 0.5, 0.6);
-  hits.push({
-    x: p[0],
-    y: p[1],
-    radius: Math.max(12, s),
-    type: "building",
-    id: b.id,
-    label: b.name || b.kind,
-  });
-}
-function draw(now) {
-  ctx.clearRect(0, 0, width, heightPx);
-  hits = [];
-  const { w, h } = worldSize(),
-    terrain = new Map((S.terrain || []).map((t) => [t.x + "," + t.y, t.kind])),
-    s = scale();
-  poly(
-    [iso(0, 0, -0.35), iso(w, 0, -0.35), iso(w, h, -0.35), iso(0, h, -0.35)],
-    "#91ac81",
-  );
-  for (let total = 0; total < w + h; total++)
-    for (let x = 0; x < w; x++) {
-      const y = total - x;
-      if (y < 0 || y >= h) continue;
-      const kind =
-        terrain.get(x + "," + y) ||
-        (x === 3 || x === 4 ? "water" : y === 9 || x === 12 ? "road" : "grass");
-      let color =
-        kind === "water" || kind === "river"
-          ? "#83bac0"
-          : kind === "road"
-            ? "#d9cda4"
-            : kind === "farm"
-              ? "#b8aa63"
-              : kind === "sand"
-                ? "#d7cba0"
-                : ["#a9c28e", "#a5bf88", "#abc590", "#a2bd85"][
-                    (x * 7 + y * 11) % 4
-                  ];
-      tile(x, y, color);
-      if ((kind === "water" || kind === "river") && (x + y) % 3 === 0) {
-        const p = iso(x + 0.25, y + 0.5);
-        ctx.strokeStyle = "#b5d9d1";
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(p[0], p[1]);
-        ctx.lineTo(p[0] + s * 0.35, p[1] + s * 0.12);
-        ctx.stroke();
-      }
-    }
-  const objects = [];
-  for (const t of S.terrain || [])
-    if (t.kind === "forest" || t.kind === "tree")
-      objects.push({
-        depth: num(t.x) + num(t.y),
-        draw: () => tree(num(t.x), num(t.y), num(t.x) * 3 + num(t.y)),
-      });
-  if (!(S.terrain || []).length) {
-    for (let y = 1; y < h; y += 2)
-      for (let x = 1; x < w; x += 2)
-        if (x > 5 && (x * 7 + y * 13) % 11 < 3)
-          objects.push({ depth: x + y, draw: () => tree(x, y, x + y) });
-  }
-  (S.buildings || []).forEach((b) =>
-    objects.push({ depth: num(b.x) + num(b.y) + 1, draw: () => building(b) }),
-  );
-  living().forEach((c) => {
-    const previous = oldPositions.get(String(c.id)),
-      t = reduced ? 1 : clamp((now - transitionStart) / 900, 0, 1),
-      x = previous ? previous.x + (num(c.x) - previous.x) * t : num(c.x),
-      y = previous ? previous.y + (num(c.y) - previous.y) * t : num(c.y),
-      j = ((num(c.id) * 0.618) % 1) - 0.5,
-      k = ((num(c.id) * 0.317) % 1) - 0.5;
-    objects.push({
-      depth: x + y + 1.2,
-      draw: () => {
-        const [px, py] = iso(x + 0.5 + j * 0.45, y + 0.5 + k * 0.45),
-          r = clamp(s * 0.12, 2.1, 5.5),
-          bob = !reduced && t < 1 ? Math.sin(now * 0.02 + num(c.id)) * 1 : 0;
-        ctx.fillStyle = "#254b3e30";
-        ctx.beginPath();
-        ctx.ellipse(px, py + 2, r * 1.3, r * 0.6, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = "#486252";
-        ctx.lineWidth = Math.max(1, r * 0.4);
-        ctx.beginPath();
-        ctx.moveTo(px - r * 0.4, py);
-        ctx.lineTo(px - r * 0.4, py - r);
-        ctx.moveTo(px + r * 0.4, py);
-        ctx.lineTo(px + r * 0.4, py - r);
-        ctx.stroke();
-        ctx.fillStyle =
-          num(c.happiness) > 65
-            ? "#e9be58"
-            : num(c.happiness) < 40
-              ? "#d47b58"
-              : "#619689";
-        ctx.fillRect(px - r * 0.7, py - r * 2 + bob, r * 1.4, r * 1.7);
-        ctx.fillStyle = ["#deb998", "#c99d78", "#a87959"][
-          Math.abs(Math.floor(num(c.id))) % 3
-        ];
-        ctx.beginPath();
-        ctx.arc(px, py - r * 2.5 + bob, r * 0.7, 0, Math.PI * 2);
-        ctx.fill();
-        if (
-          selected?.type === "citizen" &&
-          String(selected.id) === String(c.id)
-        ) {
-          ctx.strokeStyle = "#183f33";
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.ellipse(px, py + 3, r * 2.4, r * 1.2, 0, 0, Math.PI * 2);
-          ctx.stroke();
-          ctx.fillStyle = "#183f33";
-          ctx.beginPath();
-          ctx.moveTo(px, py - r * 4);
-          ctx.lineTo(px - 3, py - r * 5);
-          ctx.lineTo(px + 3, py - r * 5);
-          ctx.fill();
-        }
-        hits.push({
-          x: px,
-          y: py - r,
-          radius: Math.max(8, r * 2),
-          type: "citizen",
-          id: c.id,
-          label: c.name + " · " + (c.activity || c.job || "Resident"),
-        });
-      },
-    });
-  });
-  objects.sort((a, b) => a.depth - b.depth).forEach((o) => o.draw());
-  if (/storm|rain/i.test(S.weather || "")) {
-    ctx.fillStyle = "#597d9620";
-    ctx.fillRect(0, 0, width, heightPx);
-  }
-  raf = requestAnimationFrame(draw);
-}
-function hit(e) {
-  const rect = canvas.getBoundingClientRect(),
-    x = e.clientX - rect.left,
-    y = e.clientY - rect.top;
-  return hits
-    .filter((h) => Math.hypot(x - h.x, y - h.y) < h.radius)
-    .sort(
-      (a, b) =>
-        (a.type === "citizen" ? -1 : 1) - (b.type === "citizen" ? -1 : 1) ||
-        Math.hypot(x - a.x, y - a.y) - Math.hypot(x - b.x, y - b.y),
-    )[0];
-}
-canvas.onpointerdown = (e) => {
-  drag = { x: e.clientX, y: e.clientY, px: panX, py: panY, moved: false };
-  canvas.setPointerCapture(e.pointerId);
-};
-canvas.onpointermove = (e) => {
-  if (drag) {
-    const dx = e.clientX - drag.x,
-      dy = e.clientY - drag.y;
-    drag.moved = drag.moved || Math.abs(dx) + Math.abs(dy) > 5;
-    panX = drag.px + dx;
-    panY = drag.py + dy;
-    $("#tooltip").style.display = "none";
-  } else {
-    const h = hit(e),
-      tip = $("#tooltip");
-    if (h) {
-      tip.textContent = h.label;
-      tip.style.display = "block";
-      tip.style.left = clamp(h.x + 12, 8, width - 190) + "px";
-      tip.style.top = clamp(h.y - 30, 8, heightPx - 40) + "px";
-    } else tip.style.display = "none";
-  }
-};
-canvas.onpointerup = (e) => {
-  if (drag && !drag.moved) {
-    const h = hit(e);
-    if (h) {
-      selected = { type: h.type, id: h.id };
-      renderInspector();
-    }
-  }
-  drag = null;
-};
-canvas.onpointercancel = () => (drag = null);
-canvas.onpointerleave = () => ($("#tooltip").style.display = "none");
-canvas.addEventListener(
-  "wheel",
-  (e) => {
-    e.preventDefault();
-    zoom = clamp(zoom * (e.deltaY < 0 ? 1.08 : 0.92), 0.55, 3);
+const worldView = new NewHavenWorld(canvas, {
+  onSelect(selection) {
+    selected = selection;
+    renderInspector();
   },
-  { passive: false },
-);
-$("#zoom-in").onclick = () => (zoom = clamp(zoom * 1.2, 0.55, 3));
-$("#zoom-out").onclick = () => (zoom = clamp(zoom / 1.2, 0.55, 3));
-$("#recenter").onclick = () => {
-  zoom = 1;
-  panX = panY = 0;
-};
-canvas.onkeydown = (e) => {
-  if (
-    [
-      "+",
-      "=",
-      "-",
-      "ArrowLeft",
-      "ArrowRight",
-      "ArrowUp",
-      "ArrowDown",
-      "Home",
-    ].includes(e.key)
-  )
-    e.preventDefault();
-  if (e.key === "+" || e.key === "=") zoom = clamp(zoom * 1.15, 0.55, 3);
-  if (e.key === "-") zoom = clamp(zoom / 1.15, 0.55, 3);
-  if (e.key === "ArrowLeft") panX += 25;
-  if (e.key === "ArrowRight") panX -= 25;
-  if (e.key === "ArrowUp") panY += 25;
-  if (e.key === "ArrowDown") panY -= 25;
-  if (e.key === "Home") {
-    panX = panY = 0;
-    zoom = 1;
-  }
-};
+});
+function resize() {
+  worldView.resize();
+}
+$("#zoom-in").onclick = () => worldView.zoom(1.2);
+$("#zoom-out").onclick = () => worldView.zoom(1 / 1.2);
+$("#recenter").onclick = () => worldView.recenter();
+
+function renderIntervention() {
+  const option = (S.interventions || []).find(
+    (o) => o.id === $("#intervention").value,
+  );
+  if (!option) return;
+  const explanations = {
+    storm:
+      "Destroys 28% of stored food, damages buildings and disrupts trade for 14 days. Emergency response costs up to " +
+      money(num(S.population) * 1.2) +
+      "; repairs cost more.",
+    aid: "External aid: two days of food with council-paid transport. Emergency only; 30-day cooldown. No money grant.",
+    festival:
+      "30-day cooldown. Smaller mood benefits for already-happy citizens.",
+    education: "Higher wages; rising investment costs and a 30-day cooldown.",
+    automation:
+      "Diminishing harvest gains; rising investment costs and a 30-day cooldown.",
+    tax: "Switches flat income tax between 8% and 15%; 7-day cooldown.",
+    market: "Toggles the food price cap; 7-day cooldown.",
+  };
+  $("#intervention-detail").textContent =
+    (option.id === "storm"
+      ? ""
+      : "Council cost " + money(option.cost) + " · ") +
+    option.description +
+    ". " +
+    (explanations[option.id] || "");
+  $("#intervene").disabled = busy || !option.available;
+}
+function renderConsequences() {
+  const l = S.ledger || {},
+    resource = S.resources || {};
+  const row = (label, value, type = "") =>
+    '<div class="ledger-row ' +
+    type +
+    '"><span>' +
+    esc(label) +
+    "</span><strong>" +
+    esc(value) +
+    "</strong></div>";
+  $("#world-alerts").innerHTML = (S.active_effects || [])
+    .map(
+      (e) =>
+        '<div class="crisis"><strong>⚠ ' +
+        esc(e.label) +
+        "</strong><span>" +
+        fmt(e.days_remaining) +
+        " days of disruption remaining · Inspect buildings for lasting damage.</span></div>",
+    )
+    .join("");
+  $("#daily-ledger").innerHTML =
+    '<div class="ledger-group"><div class="eyebrow">Food · meals</div>' +
+    row("Opening reserves", fmt(l.food_opening)) +
+    row("Harvest & foraging", "+" + fmt(l.food_produced), "positive") +
+    row("Relief imported", "+" + fmt(l.food_imported), "positive") +
+    row("Eaten", "−" + fmt(l.food_consumed)) +
+    row("Lost / spoiled", "−" + fmt(l.food_lost), "negative") +
+    row("Closing reserves", fmt(l.food_closing ?? S.food)) +
+    '</div><div class="ledger-group"><div class="eyebrow">Money · whole economy</div>' +
+    row("Opening money", money(l.money_opening)) +
+    row("External trade", "+" + money(l.trade_income), "positive") +
+    row("Upkeep / policies", "−" + money(l.maintenance_cost)) +
+    row(
+      "Repairs / emergency response",
+      "−" + money(l.repair_cost),
+      "negative",
+    ) +
+    row("Relief transport", "−" + money(l.relief_cost)) +
+    row("Closing money", money(l.money_closing)) +
+    '<p class="hint">Taxes, wages and purchases transfer existing money. Materials: ' +
+    fmt(resource.wood) +
+    " wood / " +
+    fmt(resource.stone) +
+    " stone.</p></div>";
+  $("#places").innerHTML = (S.buildings || [])
+    .map(
+      (b) =>
+        '<button class="place ' +
+        (num(b.condition, 100) < 95 ? "damaged" : "") +
+        '" data-place="' +
+        esc(b.id) +
+        '"><span>' +
+        esc(b.name) +
+        "</span><small>" +
+        fmt(b.condition ?? 100) +
+        "%</small></button>",
+    )
+    .join("");
+  $$("[data-place]").forEach(
+    (b) =>
+      (b.onclick = () => {
+        selected = { type: "building", id: b.dataset.place };
+        renderInspector();
+      }),
+  );
+  const decisions = S.decision_log || [];
+  $("#decision-summary").innerHTML =
+    "<p>Programmed responses are <strong>RULES</strong>. Only a completed language-model call is <strong>AI</strong>. " +
+    fmt((S.pending_decisions || []).length) +
+    " events await optional reflection.</p>";
+  $("#decisions").innerHTML =
+    decisions
+      .slice(-5)
+      .reverse()
+      .map(
+        (d) =>
+          '<div class="decision"><span class="tag">' +
+          (d.source === "rules" ? "RULES" : "AI") +
+          "</span><strong>" +
+          esc(citizen(d.citizen_id)?.name || "Citizen") +
+          "</strong><p>" +
+          esc(d.reason || d.action) +
+          "</p>" +
+          (d.effect
+            ? "<p><strong>Actual effect:</strong> " + esc(d.effect) + "</p>"
+            : "") +
+          '<span class="hint">Day ' +
+          fmt(d.day) +
+          " · " +
+          esc(String(d.action || "").replaceAll("_", " ")) +
+          "</span></div>",
+      )
+      .join("") ||
+    "<p>No recorded decisions yet. Advance time or introduce a crisis.</p>";
+  renderIntervention();
+}
+
 let lastFrameHeight = 0;
 function height() {
   requestAnimationFrame(() => {
@@ -866,9 +690,10 @@ window.addEventListener("message", (e) => {
     }
     if (replaced) {
       selected = null;
-      zoom = 1;
-      panX = panY = 0;
+      worldView.recenter();
     }
+    worldView.setState(S);
+    renderConsequences();
     renderMetrics();
     renderInspector();
     renderPeople();
@@ -887,6 +712,7 @@ window.addEventListener("message", (e) => {
     toast(args.error);
   }
   if (args.experiment) renderExperiment(args.experiment);
+  else if (acknowledged && !args.error) $("#experiment-results").innerHTML = "";
   if (args.save_data && args.save_id && args.save_id !== lastSave) {
     lastSave = args.save_id;
     const blob = new Blob(
@@ -925,6 +751,9 @@ action = function (actionName, data = {}) {
     value: { id: pendingId, action: actionName, ...data },
   });
 };
+$("#top-nav").append(document.querySelector("nav"));
+$(".topbar").append($("#menu"));
+$("#intervention").onchange = renderIntervention;
 new ResizeObserver(() => {
   resize();
   height();
@@ -936,6 +765,6 @@ renderPeople();
 renderEvents();
 renderEconomy();
 resize();
-requestAnimationFrame(draw);
+
 post("streamlit:componentReady", { apiVersion: 1 });
 height();

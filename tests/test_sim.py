@@ -42,7 +42,7 @@ class SimulationTests(unittest.TestCase):
         before_food = sim.world.food
         sim.rng.choices = Mock(return_value=["Clear"])
         sim.step()
-        self.assertAlmostEqual(sim.world.food,before_food-10)
+        self.assertAlmostEqual(sim.world.food,before_food-10-sim.ledger["food_lost"])
         after_money = sum(c.wealth for c in sim.living)+sim.world.treasury+sum(b["cash"] for b in sim.businesses)
         self.assertAlmostEqual(before_money,after_money)
         self.assertTrue(all(c.energy > 0 for c in sim.living))
@@ -82,8 +82,9 @@ class SimulationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             sim.intervene("festival")
         self.assertEqual(state,sim.save())
-        sim.intervene("aid")
-        self.assertEqual(sim.world.treasury,100)
+        with self.assertRaises(ValueError):
+            sim.intervene("aid")
+        self.assertEqual(sim.world.treasury,0)
 
     def test_decisions_are_constrained_and_single_use(self):
         sim=Simulation()

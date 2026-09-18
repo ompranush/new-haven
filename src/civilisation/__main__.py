@@ -10,7 +10,7 @@ def main():
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--population", type=int, default=100)
     parser.add_argument("--days", type=int, default=365)
-    parser.add_argument("--compare", choices=["storm", "education", "automation", "festival", "aid", "tax"])
+    parser.add_argument("--compare", choices=["storm", "education", "automation", "festival", "tax"])
     parser.add_argument("--seeds", type=int, default=3)
     args = parser.parse_args()
     if args.compare:

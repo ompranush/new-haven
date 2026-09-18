@@ -1,4 +1,4 @@
-# New Haven · Living Worlds
+# New Haven · The Living Valley
 
 [Play in your browser](https://new-haven-bafjr8dqjy7ntdystyayut.streamlit.app/) · [How the model works](docs/MODEL.md)
 
@@ -12,7 +12,9 @@ Try a storm, a festival, food relief, education, a different income tax, or bett
 
 ## Included
 
-- A responsive daylight interface with an animated, clickable isometric Canvas town, distinct buildings, river crossing, farms, forest, mine, and citizens.
+- A high-contrast interface with a detailed voxel-style Canvas valley: terraced hills, forests, timber houses, council tower, market, school, mine, farms, windmill and river crossing.
+- Persistent flood damage, disrupted production and trade, funded building repairs, timber and stone, and daily food/money ledgers. Damaged buildings and scaffolding appear in the world.
+- Limited relief, cooldowns, scaled upgrade costs and diminishing benefits. Citizens sacrifice wages to forage or participate in recovery.
 - A deterministic Python engine with personality, goals/progress, needs/rest, work, wages, taxes, business accounts, food purchases, and public meal support.
 - Directional friendships/rivalries, adult marriages, children with parents, ageing, deaths and bereavement. Event-driven memories preserve personal context.
 - World, Citizens, Economy, Chronicle, Experiments and Field Guide views. Charts give each metric its own scale.
@@ -22,6 +24,8 @@ Try a storm, a festival, food relief, education, a different income tax, or bett
 - Automated engine, replay, lifecycle, input-validation, cognition and experiment checks; GitHub Actions runs them for every push.
 
 ## Optional AI
+
+**Default citizens are rule-based agents, not autonomous language models.** Personality, needs and memories influence programmed responses. The interface labels these decisions RULES, and completed model decisions AI, with their actual effects. Graphics are not intelligence.
 
 Expand **Optional AI cognition** below the interface, enable it, and enter your own OpenAI API key and a model supporting structured outputs. Keys stay in the current server session and are not sent to the Canvas component or included in saves. Use **Forget API key** to clear it. No shared owner key is exposed to public visitors.
 
@@ -50,15 +54,18 @@ On Streamlit Community Cloud, deploy branch `main`, entrypoint `app.py`. Keep th
 python -m unittest discover -s tests -v
 python -m src.civilisation --seed 7 --population 100 --days 365
 python -m src.civilisation --compare education --seeds 3 --days 90
-node --check frontend/app.js  # optional frontend development check
+node --check frontend/app.js  # optional frontend development checks
+node --check frontend/world.js
 ```
 
 ## Structure
 
 ```text
 app.py                          Session host and validated action dispatch
-frontend/index.html             Responsive interface and styles
-frontend/app.js                 Canvas renderer and component interactions
+frontend/index.html             Interface structure
+frontend/style.css              High-contrast responsive layout
+frontend/app.js                 Interactions, ledgers and inspection
+frontend/world.js               State-driven voxel-style diorama
 src/civilisation/models.py      Citizen and world records
 src/civilisation/sim.py         Economy, social/life rules, save/load
 src/civilisation/cognition.py   Optional constrained event reflection
@@ -73,3 +80,9 @@ docs/MODEL.md                   Assumptions, units, limits and interpretation
 This is an interactive toy society, not a validated model of real economies or population dynamics. The browser starts with 20–250 citizens and caps experiments at 10 seeds and 365 days. The engine supports up to 1,000 initial citizens and 2,000 lifetime citizen records. It has not been validated for 10,000 agents over 1,000 years.
 
 Businesses currently have a fixed roster; nonfarm revenue represents outside trade. New firms, bankruptcy, autonomous political movements, housing markets, richer inheritance, persistent hosted accounts, and research-scale batch scheduling are future work. Event/history retention is bounded for browser performance. See MODEL.md for exact assumptions. These boundaries are deliberate and visible rather than implied as completed research features.
+
+## Try the consequences
+
+Apply **River flood**, then inspect the farm: food falls immediately, buildings lose condition and a 14-day disruption begins. Advance one day at a time to see repair costs and material use. Request one relief convoy: transport costs money, food is imported, and another convoy needs 30 days. In Research, the day-17 checkpoint exposes first-week damage that final outcomes can hide. Unavailable interventions are reported per seed rather than forced.
+
+Hills and vegetation are scenery. Building condition, repairs, residents and crisis effects come from the simulation. This is a 2.5D voxel-style diorama, not a photorealistic reproduction of the concept image. Ambient movement does not advance time. Save before leaving: the world does not run after the browser closes.
